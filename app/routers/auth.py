@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os 
 import random
 import string
+from app.schemas.user import OnboardingUpdate
 
 load_dotenv()
 
@@ -129,5 +130,72 @@ def get_current_user(token:str, db:Session = Depends(get_db)):
     user = get_user_by_email(db, email)
     if user is None:
         raise credential_exception
+
+    return user
+
+
+@router.put("/onboarding", response_model = UserResponse)
+def save_onboarding(
+    answers: OnboardingUpdate,
+    token: str,
+    db: Session = Depends(get_db)
+):
+
+    """save onboarding answers for the logged in user"""
+
+    #decode to get the user
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail = "COULD NOT VALIDATE CREDENTIALS",
+    )
+
+    try: 
+        payload = jwt.decode(token, SECRET_KEY, algorithms = [ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+
+    except JWTError:
+        raise credentials_exception
+
+    user = get_user_by_email(db, email)
+
+    if user is None:
+        raise credentials_exception
+
+    #update only the fields that were provided
+    if answers.fitness_level is not None:
+        user.fitness_level = answers.fitness_level
+    if answers.goal is not None:
+        user.goal = answers.goal
+    if answers.days_per_week is not None:
+        user.days_per_week = answers.days_per_week
+    if answers.training_days is not None:
+        user.training_days = ','.join(answers.training_days) if isinstance(answers.training_days, list) else answers.training_days
+    if answers.workout_duration is not None:
+        user.workout_duration = answers.workout_duration
+    if answers.equipment is not None:
+        user.equipment = answers.equipment
+    if answers.food_preferences is not None:
+        user.food_preferences = ','.join(answers.food_preferences) if isinstance(answers.food_preferences, list) else answers.food_preferences
+    if answers.location is not None:
+        user.location = answers.location
+    if answers.injuries is not None:
+        user.injuries = answers.injuries
+    if answers.gender is not None:
+        user.gender = answers.gender
+    if answers.age is not None:
+        user.age = answers.age
+    if answers.height is not None:
+        user.height = answers.height
+    if answers.weight is not None:
+        user.weight = answers.weight
+    if answers.goal_weight is not None:
+        user.goal_weight = answers.goal_weight
+
+
+    #save to database
+    db.commit()
+    db.refresh(user)
 
     return user
