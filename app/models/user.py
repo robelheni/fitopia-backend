@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float
 from sqlalchemy.sql import func
 from app.database import Base
+from sqlalchemy.dialects.postgresql import JSONB
 
 class User(Base):
     __tablename__ = "users"
@@ -20,7 +21,7 @@ class User(Base):
     training_days = Column(String, nullable=True)
     workout_duration = Column(String, nullable=True)
     equipment = Column(String, nullable=True)
-    food_perferences = Column(String, nullable=True)
+    food_preferences = Column(String, nullable=True)
     location = Column(String, nullable = True)
     injuries = Column(String, nullable = True)
 
@@ -42,3 +43,4 @@ class User(Base):
     is_pro = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+

@@ -43,3 +43,10 @@ print("\n=== MUSCLE GAIN (56kg) ===")
 print(f"Daily calories: {result2['calories']}")
 print(f"Protein: {result2['protein']}g")
 print(f"Explanation: {result2['explanation']}")
+
+
+print("\n=== TESTING MEAL CATEGORIES ===")
+from app.nutrition import get_meal_calorie_category_for_goal
+print(f"Lose weight prefers: {get_meal_calorie_category_for_goal('lose_weight')}")
+print(f"Build muscle prefers: {get_meal_calorie_category_for_goal('build_muscle')}")
+print(f"Stay active prefers: {get_meal_calorie_category_for_goal('stay_active')}")

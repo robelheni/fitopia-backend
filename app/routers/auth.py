@@ -194,6 +194,10 @@ def save_onboarding(
         user.goal_weight = answers.goal_weight
 
 
+    user.weekly_plan = None
+    user.plan_generated_at = None
+
+
     #save to database
     db.commit()
     db.refresh(user)
