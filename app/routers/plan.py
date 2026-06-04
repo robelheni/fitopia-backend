@@ -64,6 +64,8 @@ def get_nutrition(token: str, db: Session = Depends(get_db)):
             "goal": user.goal,
             "training_days": user.training_days,
             "food_preferences": user.food_preferences,
+            "starting_weight": user.starting_weight,
+
         },
         "nutrition": nutrition
     }

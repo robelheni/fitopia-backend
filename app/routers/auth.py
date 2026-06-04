@@ -49,9 +49,8 @@ def create_access_token(data:dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_user_by_email(db: Session, email:str):
-    """Find a user by their email"""
-    return db.query(User).filter(User.email == email).first()
+def get_user_by_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email.lower().strip()).first()
 
 
 # ─── Endpoints ──────────────────────────────────────────────────────
@@ -74,7 +73,7 @@ def signup(user: UserCreate, db:Session = Depends(get_db)):
     #create the user
     new_user = User(
         name=user.name,
-        email=user.email,
+        email=user.email.lower().strip(),
         hashed_password=hashed,
         referral_code=referral,
         referred_by=user.referral_code
@@ -89,7 +88,7 @@ def signup(user: UserCreate, db:Session = Depends(get_db)):
 @router.post("/login", response_model = Token)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
-    user = get_user_by_email(db, credentials.email)
+    user = get_user_by_email(db, credentials.email.lower().strip())
 
     #check user exists and password is correct
     if not user or not verify_password(credentials.password, user.hashed_password):
@@ -149,6 +148,8 @@ def save_onboarding(
         detail = "COULD NOT VALIDATE CREDENTIALS",
     )
 
+
+
     try: 
         payload = jwt.decode(token, SECRET_KEY, algorithms = [ALGORITHM])
         email: str = payload.get("sub")
@@ -192,6 +193,10 @@ def save_onboarding(
         user.weight = answers.weight
     if answers.goal_weight is not None:
         user.goal_weight = answers.goal_weight
+
+
+    if not user.starting_weight:
+        user.starting_weight = user.weight
 
 
     user.weekly_plan = None
