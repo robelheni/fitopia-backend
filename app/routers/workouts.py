@@ -8,6 +8,7 @@ from app.routers.auth import get_user_by_email
 import os
 from app.workout_generator import generate_weekly_plan
 from app.models.exercise import Exercise
+from app.models.liked_exercise import LikedExercise
 
 router = APIRouter(prefix="/workouts", tags=["Workouts"])
 
@@ -231,3 +232,278 @@ def get_workout_plan(token:str, db: Session = Depends(get_db)):
     return enriched_plan
 
 
+@router.get("/swap/{exercise_id}")
+def get_swap_options(
+    exercise_id: str,
+    token: str,
+    # Comma separated list of exercise IDs already in the session
+
+    session_exercises: str = "",
+    db: Session = Depends(get_db)
+):
+    """
+    Returns alternative exercises for a given exercise ID.
+    Matches by movement pattern so the swap respects training intent.
+    A chest press only swaps with another press.
+    A back row only swaps with another row.
+    """
+
+    user = get_user_from_token(token, db)
+
+    #step 1 - Get the exercise the user wants to swap
+    exercise = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not exercise:
+        raise HTTPException(status_code = 404, detail="Exercise not found")
+
+    #step 2 - Get the movement pattern and muscle group
+    movement_pattern = exercise.movement_pattern
+    muscle_group = exercise.muscle_group
+
+    #step 3 - Build the equipment filter from the user's profile
+    equipment_filter = {
+        "gym":        ["gym", "bodyweight"],
+        "dumbbells":  ["dumbbells", "bodyweight"],
+        "bodyweight": ["bodyweight"],
+        "both":       ["gym", "dumbbells", "bodyweight"],
+    }
+    allowed_equipment = equipment_filter.get(user.equipment, ["gym"])
+
+    #exclude the exercise that are already in the workout so we do not want to suggest them
+    exclude_ids = []
+    if session_exercises:
+        exclude_ids = [e.strip() for e in session_exercises.split(",")]
+
+    #Always exclude the exercise being swapped itself
+    exclude_ids.append(exercise_id)
+    #Query alternatives maching the same movement pattern
+    alternatives = db.query(Exercise).filter(
+        Exercise.movement_pattern == movement_pattern,
+        Exercise.muscle_group == muscle_group,
+        Exercise.equipment.in_(allowed_equipment),
+        
+        ~Exercise.id.in_(exclude_ids)
+
+    ).order_by(Exercise.priority).limit(5).all()
+
+    #If no alternatives found the sme pattern
+    if not alternatives:
+        alternatives = db.query(Exercise).filter(
+            Exercise.muscle_group == muscle_group,
+            Exercise.equipment.in_(allowed_equipment),
+            
+            ~Exercise.id.in_(exclude_ids)
+        ).order_by(Exercise.priority).limit(5).all()
+
+    return [
+        {
+            "id": ex.id,
+            "name": ex.name,
+            "muscle_group": ex.muscle_group,
+            "movement_pattern": ex.movement_pattern,
+            "equipment": ex.equipment,
+            "sets_range": ex.sets_range,
+            "reps_range": ex.reps_range,
+            "is_timed": ex.is_timed,
+            "seconds_range": ex.seconds_range,
+            "description": ex.description,
+            "instructions": ex.instructions,
+            "coaching_cues": ex.coaching_cues,
+            "video_url": ex.video_url,
+
+        }
+        for ex in alternatives
+    ]
+
+
+
+
+
+@router.post("/like/{exercise_id}")
+def toggle_like_exercise(
+    exercise_id: str,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Toggles the like status of an exercise for the current user.
+    If the exercise is not liked — likes it.
+    If the exercise is already liked — unlikes it.
+    This way one endpoint handles both actions.
+    """
+
+    user = get_user_from_token(token, db)
+
+    # check id the exercise exists
+    exercise = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    #check if already liked
+    existing = db.query(LikedExercise).filter(
+        LikedExercise.user_id ==user.id,
+        LikedExercise.exercise_id == exercise_id
+    ).first()
+
+    if existing:
+        #Already liked - remove it
+        db.delete(existing)
+        db.commit()
+        return {"liked": False, "message": f"{exercise.name} removed from favourites"}
+    else:
+        #Not liked yet - add it
+        like = LikedExercise(
+            user_id = user.id,
+            exercise_id=exercise_id
+        )
+        db.add(like)
+        db.commit()
+        return {"liked": True, "message": f"{exercise.name} added to favourites"}
+
+
+@router.get("/liked")
+def get_liked_exercises(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns all exercises the user has liked.
+    Used to populate the favourites screen on the frontend.
+    """
+    user = get_user_from_token(token, db)
+
+    #get all liked exercises IDs for this user
+    liked = db.query(LikedExercise).filter(
+        LikedExercise.user_id == user.id
+    ).order_by(LikedExercise.liked_at.desc()).all()
+
+    result =[]
+    for like in liked:
+        exercise = db.query(Exercise).filter(
+            Exercise.id ==like.exercise_id
+        ).first()
+        if exercise:
+            result.append({
+                "id": exercise.id,
+                "name": exercise.name,
+                "muscle_group": exercise.muscle_group,
+                "equipment": exercise.equipment,
+                "movement_pattern": exercise.movement_pattern,
+                "sets_range": exercise.sets_range,
+                "reps_range": exercise.reps_range,
+                "is_timed": exercise.is_timed,
+                "seconds_range": exercise.seconds_range,
+                "description": exercise.description,
+                "instructions": exercise.instructions,
+                "coaching_cues": exercise.coaching_cues,
+                "video_url": exercise.video_url,
+                "liked_at": like.liked_at,
+            })
+    return result
+
+
+@router.get("/like/{exercise_id}/status")
+def get_like_status(
+    exercise_id: str,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns whether the current user has liked a specific exercise.
+    Called when the exercise detail screen loads so the frontend
+    knows whether to show a filled or empty heart icon.
+    """
+    user = get_user_from_token(token, db)
+
+    # Check if this exercise is liked by the current user
+    existing = db.query(LikedExercise).filter(
+        LikedExercise.user_id == user.id,
+        LikedExercise.exercise_id == exercise_id
+    ).first()
+
+    return {"liked": existing is not None}
+
+
+@router.get("/exercise/{exercise_id}")
+def get_exercise(
+    exercise_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns full details for a single exercise by ID.
+    Called when a user taps an exercise to see the detail screen.
+    Video, instructions, coaching cues, sets and reps all returned here.
+    """
+    exercise = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    return {
+        "id": exercise.id,
+        "name": exercise.name,
+        "muscle_group": exercise.muscle_group,
+        "equipment": exercise.equipment,
+        "movement_pattern": exercise.movement_pattern,
+        "priority": exercise.priority,
+        "sets_range": exercise.sets_range,
+        "reps_range": exercise.reps_range,
+        "is_timed": exercise.is_timed,
+        "seconds_range": exercise.seconds_range,
+        "description": exercise.description,
+        "instructions": exercise.instructions,
+        "coaching_cues": exercise.coaching_cues,
+        "video_url": exercise.video_url,
+    }
+
+
+@router.get("/exercises")
+def get_all_exercises(
+    muscle_group: str = None,
+    equipment: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns exercises from the database with optional filters.
+    Warmups and finishers are excluded — those are internal only.
+    Used for the workout library browser on the frontend.
+
+    Examples:
+    /workouts/exercises — all exercises
+    /workouts/exercises?muscle_group=chest — chest only
+    /workouts/exercises?muscle_group=chest&equipment=gym — gym chest only
+    """
+
+    # Base query — exclude warmups and finishers
+    query = db.query(Exercise).filter(
+        ~Exercise.muscle_group.in_(["warmup", "finisher"])
+    )
+
+    # Apply muscle group filter if provided
+    if muscle_group:
+        query = query.filter(Exercise.muscle_group == muscle_group)
+
+    # Apply equipment filter if provided
+    if equipment:
+        query = query.filter(Exercise.equipment == equipment)
+
+    # Order by muscle group then priority — best exercises first
+    exercises = query.order_by(
+        Exercise.muscle_group,
+        Exercise.priority
+    ).all()
+
+    return [
+        {
+            "id": ex.id,
+            "name": ex.name,
+            "muscle_group": ex.muscle_group,
+            "equipment": ex.equipment,
+            "movement_pattern": ex.movement_pattern,
+            "sets_range": ex.sets_range,
+            "reps_range": ex.reps_range,
+            "is_timed": ex.is_timed,
+            "seconds_range": ex.seconds_range,
+            "description": ex.description,
+            "video_url": ex.video_url,
+        }
+        for ex in exercises
+    ]
