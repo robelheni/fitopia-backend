@@ -151,36 +151,37 @@ def get_exercises_for_session(
     }
     allowed_difficulties = difficulty_map.get(fitness_level, ["beginner"])
 
-    # Exercises per session based on fitness level and duration
-    # Beginners get fewer exercises regardless of equipment
+    # Exercises per session based on fitness level, duration and whether cardio circuit is included
+    # Cardio circuit adds roughly 10-15 minutes so we reduce strength exercises accordingly
+    has_cardio = goal in ["lose_weight", "improve_fitness", "stay_active"]
+
     if fitness_level == "beginner":
         if duration <= 30:
-            exercises_per_session = 4
+            exercises_per_session = 3 if has_cardio else 4
         elif duration <= 45:
-            exercises_per_session = 5
+            exercises_per_session = 4 if has_cardio else 5
         elif duration <= 60:
-            exercises_per_session = 6
+            exercises_per_session = 5 if has_cardio else 6
         else:
-            exercises_per_session = 7
+            exercises_per_session = 6 if has_cardio else 7
     elif equipment == "bodyweight":
-        # Bodyweight intermediate and advanced get more — shorter rest periods
         if duration <= 30:
-            exercises_per_session = 6
+            exercises_per_session = 4 if has_cardio else 5
         elif duration <= 45:
-            exercises_per_session = 7
+            exercises_per_session = 5 if has_cardio else 6
         elif duration <= 60:
-            exercises_per_session = 8
+            exercises_per_session = 6 if has_cardio else 8
         else:
-            exercises_per_session = 10
+            exercises_per_session = 7 if has_cardio else 10
     else:
         if duration <= 30:
-            exercises_per_session = 4
+            exercises_per_session = 3 if has_cardio else 4
         elif duration <= 45:
-            exercises_per_session = 5
+            exercises_per_session = 4 if has_cardio else 5
         elif duration <= 60:
-            exercises_per_session = 7
+            exercises_per_session = 5 if has_cardio else 7
         else:
-            exercises_per_session = 8
+            exercises_per_session = 6 if has_cardio else 8
 
     selected_exercises = []
     used_patterns = []

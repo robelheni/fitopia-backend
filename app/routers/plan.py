@@ -54,21 +54,23 @@ def get_nutrition(token: str, db: Session = Depends(get_db)):
     nutrition = calculate_nutrition(user)
 
     return {
-        "user": {
-            "name": user.name,
-            "gender": user.gender,
-            "age": user.age,
-            "height": user.height,
-            "weight": user.weight,
-            "goal_weight": user.goal_weight,
-            "goal": user.goal,
-            "training_days": user.training_days,
-            "food_preferences": user.food_preferences,
-            "starting_weight": user.starting_weight,
-
-        },
-        "nutrition": nutrition
-    }
+    "user": {
+        "name": user.name,
+        "gender": user.gender,
+        "age": user.age,
+        "height": user.height,
+        "weight": user.weight,
+        "goal_weight": user.goal_weight,
+        "goal": user.goal,
+        "training_days": user.training_days,
+        "food_preferences": user.food_preferences,
+        "starting_weight": user.starting_weight,
+        "fitness_level": user.fitness_level,
+        "equipment": user.equipment,
+        "workout_duration": user.workout_duration,
+    },
+    "nutrition": nutrition
+}
 
 
 @router.get("/meals/weekly")
