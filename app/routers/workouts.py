@@ -518,62 +518,75 @@ def get_motivational_quote(
     db: Session = Depends(get_db)
 ):
     """
-    Calls OpenAI to generate a fresh motivational quote after workout completion.
-    The quote is drawn from real Ethiopian and Eritrean figures and proverbs.
+    Generates a powerful personalised post-workout quote using OpenAI.
+    
+    The quote is written specifically for this moment — after this workout,
+    for this goal. It should feel earned, not generic.
+    
+    Design decision: We use OpenAI to generate original quotes rather than
+    pulling from a hardcoded list. This means every completion feels unique
+    and personal. The quote is attributed to Fitopia so we never misrepresent
+    real people.
+    
     Falls back to a default quote if OpenAI is unavailable.
     """
+    import random
+
     user = get_user_from_token(token, db)
 
     openai_key = os.getenv("OPENAI_API_KEY")
 
-    # If no API key is set, return a default quote rather than crashing
+    # If no API key is configured return a solid default rather than crashing
     if not openai_key:
-        return {"text": "The work never lies. Every rep counts.", "author": "Fitopia"}
+        return {
+            "text": "You didn't come this far to only come this far. Every set you completed today is proof of who you are becoming.",
+            "author": "Fitopia"
+        }
 
     try:
         client = openai.OpenAI(api_key=openai_key)
 
-        # Map internal goal keys to readable English for the prompt
+        # Map internal goal keys to natural English phrases for the prompt
+        # This makes the generated quote feel relevant to what the user is working towards
         goal_labels = {
-            "build_muscle": "build muscle",
-            "lose_weight": "lose weight",
-            "improve_fitness": "improve fitness",
-            "stay_active": "stay active",
+            "build_muscle": "build muscle and get stronger",
+            "lose_weight": "lose weight and burn fat",
+            "improve_fitness": "improve their overall fitness",
+            "stay_active": "stay active and healthy",
         }
-        goal = goal_labels.get(user.goal, "get fit")
+        goal = goal_labels.get(user.goal, "reach their fitness goals")
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    # We ask OpenAI to only return REAL documented quotes.
-                    # This keeps the app honest — real quotes feel more powerful
-                    # than invented ones. If OpenAI is unsure a quote is real
-                    # it should fall back to a proverb which is always safe.
-                    "content": """You are a quote retrieval assistant.
+                    # We tell OpenAI to act as a coach who truly understands
+                    # the emotional high of finishing a hard workout.
+                    # The quote should feel like it was written for THIS person
+                    # at THIS exact moment — not a generic motivational poster.
+                    # We attribute it to Fitopia so we never fake real people's words.
+                    "content": """You are a world-class fitness coach and motivational writer.
+Your job is to write a single powerful post-workout quote that makes someone feel incredible after finishing their session.
 
-Return only authentic, historically documented quotations from the listed Ethiopian and Eritrean figures or from well-known Ethiopian or Eritrean proverbs.
+The quote must:
+- Feel personal and earned — like it was written specifically for this moment
+- Be emotionally powerful and inspiring
+- Relate directly to the effort of completing a workout
+- Be 1-3 sentences maximum
+- Sound like something a great coach would say to you after a hard session
+- NOT be generic or cliche
+- NOT reference specific exercises or equipment
 
-Do NOT create, rewrite, paraphrase, modernize, summarize, or invent quotes.
-Do NOT generate quotes inspired by these figures.
-If you are not confident that a quote is authentic and publicly attributed to the selected figure, choose another figure or proverb instead.
+Always attribute the quote to "Fitopia".
 
-Prefer short motivational quotes that relate to discipline, perseverance, leadership, excellence, resilience, or achievement.
-
-Possible sources include:
-Haile Gebrselassie, Abebe Bikila, Tirunesh Dibaba, Kenenisa Bekele,
-Emperor Haile Selassie, Emperor Menelik II, Taytu Betul,
-Alula Aba Nega, Afewerk Tekle, Tsegaye Gabre-Medhin,
-Bewketu Seyoum, Haddis Alemayehu, Birhanu Zerihun,
-Sahle-Work Zewde, Ethiopian Proverbs, and Eritrean Proverbs.
-
-Return JSON only: { "text": "...", "author": "..." }"""
+Return JSON only: { "text": "...", "author": "Fitopia" }"""
                 },
                 {
                     "role": "user",
-                    # Pass workout context so the quote feels relevant to what was just completed
-                    "content": f"Return an authentic quote relevant to someone who completed a {workout_name} session with the goal to {goal}. Use only a real documented quotation or proverb. Return JSON only."
+                    # Pass the specific workout and goal context so the quote
+                    # feels tailored to what this person just accomplished
+                    "content": f"Write a post-workout quote for someone who just completed a {workout_name} session. Their goal is to {goal}. Make it feel powerful and earned. Return JSON only."
                 }
             ],
             max_tokens=150,
@@ -582,14 +595,22 @@ Return JSON only: { "text": "...", "author": "..." }"""
 
         result = json.loads(response.choices[0].message.content)
         return {
-            "text": result.get("text", "Keep pushing. Every session counts."),
+            "text": result.get("text", "You showed up. You did the work. That is what separates you."),
             "author": result.get("author", "Fitopia")
         }
 
     except Exception as e:
-        # Log the error so we can debug it in Railway logs
-        print(f"OpenAI error: {e}")
+        # Log the error in Railway so we can debug if needed
+        print(f"OpenAI quote error: {e}")
+        # Return a strong default so the completion screen never looks broken
+        fallbacks = [
+            "You didn't come this far to only come this far. Every set today is proof of who you are becoming.",
+            "You showed up. You did the work. That is what separates you.",
+            "The person you are becoming is worth every rep, every drop of sweat, every hard day.",
+            "Today you chose discipline over comfort. That choice compounds every single day.",
+            "Your body heard you today. It got stronger. So did your mind.",
+        ]
         return {
-            "text": "The work never lies. Every rep counts.",
+            "text": random.choice(fallbacks),
             "author": "Fitopia"
         }
