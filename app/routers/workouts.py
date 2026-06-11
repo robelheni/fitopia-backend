@@ -544,7 +544,7 @@ def get_motivational_quote(
             "improve_fitness": "improve fitness",
             "stay_active": "stay active",
         }
-       goal = goal_labels.get(user.goal, "get fit")
+        goal = goal_labels.get(user.goal, "get fit")
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
