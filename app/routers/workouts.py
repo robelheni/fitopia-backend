@@ -507,3 +507,67 @@ def get_all_exercises(
         }
         for ex in exercises
     ]
+
+
+@router.get("/quote")
+def get_motivational_quote(
+    token: str,
+    workout_name: str = "workout",
+    db: Session = Depends(get_db)
+):
+    """
+    Generates a fresh motivational quote using OpenAI.
+    Called after workout completion to show a personalised quote.
+    """
+    import openai
+
+    user = get_user_from_token(token, db)
+
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if not openai_key:
+        # Fallback if no key
+        return {
+            "text": "The work never lies. Every rep counts.",
+            "author": "Fitopia"
+        }
+
+    try:
+        client = openai.OpenAI(api_key=openai_key)
+
+        goal_labels = {
+            "build_muscle": "build muscle",
+            "lose_weight": "lose weight",
+            "improve_fitness": "improve fitness",
+            "stay_active": "stay active",
+        }
+        goal = goal_labels.get(user.goal, "get fit")
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a motivational fitness coach. Generate short, powerful motivational quotes for people who just finished a workout. Keep quotes under 30 words. Return JSON only with fields: text and author."
+                },
+                {
+                    "role": "user",
+                    "content": f"Generate a motivational quote for someone who just completed a {workout_name} session with the goal to {goal}. Return JSON only: {{\"text\": \"...\", \"author\": \"...\"}}"
+                }
+            ],
+            max_tokens=100,
+            response_format={"type": "json_object"}
+        )
+
+        import json
+        result = json.loads(response.choices[0].message.content)
+        return {
+            "text": result.get("text", "Keep pushing. Every session counts."),
+            "author": result.get("author", "Fitopia")
+        }
+
+    except Exception as e:
+        print(f"OpenAI error: {e}")
+        return {
+            "text": "The work never lies. Every rep counts.",
+            "author": "Fitopia"
+        }
