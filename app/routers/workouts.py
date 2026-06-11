@@ -547,11 +547,31 @@ def get_motivational_quote(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a motivational fitness coach. Generate short, powerful motivational quotes for people who just finished a workout. Keep quotes under 30 words. Return JSON only with fields: text and author."
+                    # We give OpenAI a broad list of Ethiopian and Eritrean figures across
+                    # all fields — not just athletes. This makes the quotes culturally rich
+                    # and representative of the full diaspora experience.
+                    # The diversity of figures means users might see quotes from emperors,
+                    # artists, poets, politicians, athletes — all part of the same heritage.
+                    "content": """You are a motivational fitness coach who draws inspiration from 
+                Ethiopian and Eritrean history, culture and heritage.
+                Generate short powerful motivational quotes of 30 words or less.
+                The quote should feel like it could have been said by or is inspired by one of these figures:
+                Haile Gebrselassie, Abebe Bikila, Tirunesh Dibaba, Kenenisa Bekele,
+                Derartu Tulu, Miruts Yifter, Emperor Haile Selassie, Emperor Tewodros II,
+                Emperor Menelik II, Yohannes IV, Afewerk Tekle, Tsegaye Gabre-Medhin,
+                Bewketu Seyoum, Hailemariam Desalegn, Sahle-Work Zewde, Isaias Afwerki,
+                Alula Aba Nega, Taytu Betul, Bilal Endris, or use an Ethiopian or Eritrean proverb.
+                Always attribute the quote to one of these real people or to 'Ethiopian Proverb' or 'Eritrean Proverb'.
+                Never invent fake people or fake quotes — write original quotes INSPIRED by their known philosophy and words.
+                Return JSON only with fields: text and author."""
                 },
                 {
                     "role": "user",
-                    "content": f"Generate a motivational quote for someone who just completed a {workout_name} session with the goal to {goal}. Return JSON only: {{\"text\": \"...\", \"author\": \"...\"}}"
+                    # Workout context makes the quote feel relevant to what they just completed
+                    "content": f"""Generate a motivational quote for someone who just completed 
+                a {workout_name} session with the goal to {goal}. 
+                The quote should relate to their effort, discipline, consistency, or pursuit of greatness.
+                Return JSON only: {{"text": "...", "author": "..."}}"""
                 }
             ],
             max_tokens=100,
