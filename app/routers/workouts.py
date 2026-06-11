@@ -518,26 +518,22 @@ def get_motivational_quote(
     db: Session = Depends(get_db)
 ):
     """
-    Generates a fresh motivational quote using OpenAI.
-    Called after workout completion to show a personalised quote.
+    Calls OpenAI to generate a fresh motivational quote after workout completion.
+    The quote is drawn from real Ethiopian and Eritrean figures and proverbs.
+    Falls back to a default quote if OpenAI is unavailable.
     """
-    
-
     user = get_user_from_token(token, db)
 
     openai_key = os.getenv("OPENAI_API_KEY")
-    if not openai_key:
-        # Fallback if no key
-        return {
-            "text": "The work never lies. Every rep counts.",
-            "author": "Fitopia"
-        }
 
-    print(f"OPENAI_KEY exists: {bool(openai_key)}")
+    # If no API key is set, return a default quote rather than crashing
+    if not openai_key:
+        return {"text": "The work never lies. Every rep counts.", "author": "Fitopia"}
 
     try:
         client = openai.OpenAI(api_key=openai_key)
 
+        # Map internal goal keys to readable English for the prompt
         goal_labels = {
             "build_muscle": "build muscle",
             "lose_weight": "lose weight",
@@ -546,46 +542,44 @@ def get_motivational_quote(
         }
         goal = goal_labels.get(user.goal, "get fit")
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        # We ask OpenAI to only return REAL documented quotes —
-                        # not invented or paraphrased ones. This keeps the app honest
-                        # and the quotes feel more powerful because they are genuine.
-                        # If OpenAI is not confident a quote is real it should pick
-                        # a proverb instead — proverbs are always safe to use.
-                        "content": """You are a quote retrieval assistant.
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    # We ask OpenAI to only return REAL documented quotes.
+                    # This keeps the app honest — real quotes feel more powerful
+                    # than invented ones. If OpenAI is unsure a quote is real
+                    # it should fall back to a proverb which is always safe.
+                    "content": """You are a quote retrieval assistant.
 
-            Return only authentic, historically documented quotations from the listed Ethiopian and Eritrean figures or from well-known Ethiopian or Eritrean proverbs.
+Return only authentic, historically documented quotations from the listed Ethiopian and Eritrean figures or from well-known Ethiopian or Eritrean proverbs.
 
-            Do NOT create, rewrite, paraphrase, modernize, summarize, or invent quotes.
-            Do NOT generate quotes inspired by these figures.
-            If you are not confident that a quote is authentic and publicly attributed to the selected figure, choose another figure or proverb instead.
+Do NOT create, rewrite, paraphrase, modernize, summarize, or invent quotes.
+Do NOT generate quotes inspired by these figures.
+If you are not confident that a quote is authentic and publicly attributed to the selected figure, choose another figure or proverb instead.
 
-            Prefer short motivational quotes that relate to discipline, perseverance, leadership, excellence, resilience, or achievement.
+Prefer short motivational quotes that relate to discipline, perseverance, leadership, excellence, resilience, or achievement.
 
-            Possible sources include:
-            Haile Gebrselassie, Abebe Bikila, Tirunesh Dibaba, Kenenisa Bekele,
-            Emperor Haile Selassie, Emperor Menelik II, Taytu Betul,
-            Alula Aba Nega, Afewerk Tekle, Tsegaye Gabre-Medhin,
-            Bewketu Seyoum, Haddis Alemayehu, Birhanu Zerihun,
-            Sahle-Work Zewde, Ethiopian Proverbs, and Eritrean Proverbs.
+Possible sources include:
+Haile Gebrselassie, Abebe Bikila, Tirunesh Dibaba, Kenenisa Bekele,
+Emperor Haile Selassie, Emperor Menelik II, Taytu Betul,
+Alula Aba Nega, Afewerk Tekle, Tsegaye Gabre-Medhin,
+Bewketu Seyoum, Haddis Alemayehu, Birhanu Zerihun,
+Sahle-Work Zewde, Ethiopian Proverbs, and Eritrean Proverbs.
 
-            Return JSON only: { "text": "...", "author": "..." }"""
-                    },
-                    {
-                        "role": "user",
-                        # We pass the workout context so the quote feels relevant
-                        # to what the user just accomplished
-                        "content": f"Return an authentic quote relevant to someone who completed a {workout_name} session with the goal to {goal}. Use only a real documented quotation or proverb. Return JSON only."
-                    }
-                ],
-                max_tokens=150,
-                response_format={"type": "json_object"}
-            )
-        
+Return JSON only: { "text": "...", "author": "..." }"""
+                },
+                {
+                    "role": "user",
+                    # Pass workout context so the quote feels relevant to what was just completed
+                    "content": f"Return an authentic quote relevant to someone who completed a {workout_name} session with the goal to {goal}. Use only a real documented quotation or proverb. Return JSON only."
+                }
+            ],
+            max_tokens=150,
+            response_format={"type": "json_object"}
+        )
+
         result = json.loads(response.choices[0].message.content)
         return {
             "text": result.get("text", "Keep pushing. Every session counts."),
@@ -593,6 +587,7 @@ def get_motivational_quote(
         }
 
     except Exception as e:
+        # Log the error so we can debug it in Railway logs
         print(f"OpenAI error: {e}")
         return {
             "text": "The work never lies. Every rep counts.",
