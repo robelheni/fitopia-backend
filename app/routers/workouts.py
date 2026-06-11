@@ -6,6 +6,8 @@ from app.models.workout_log import WorkoutLog
 from jose import JWTError, jwt
 from app.routers.auth import get_user_by_email
 import os
+import openai
+import json
 from app.workout_generator import generate_weekly_plan
 from app.models.exercise import Exercise
 from app.models.liked_exercise import LikedExercise
@@ -519,7 +521,7 @@ def get_motivational_quote(
     Generates a fresh motivational quote using OpenAI.
     Called after workout completion to show a personalised quote.
     """
-    import openai
+    
 
     user = get_user_from_token(token, db)
 
@@ -530,6 +532,8 @@ def get_motivational_quote(
             "text": "The work never lies. Every rep counts.",
             "author": "Fitopia"
         }
+
+    print(f"OPENAI_KEY exists: {bool(openai_key)}")
 
     try:
         client = openai.OpenAI(api_key=openai_key)
@@ -578,7 +582,7 @@ def get_motivational_quote(
             response_format={"type": "json_object"}
         )
 
-        import json
+        
         result = json.loads(response.choices[0].message.content)
         return {
             "text": result.get("text", "Keep pushing. Every session counts."),
