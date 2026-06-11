@@ -546,35 +546,45 @@ def get_motivational_quote(
         }
         goal = goal_labels.get(user.goal, "get fit")
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    # This prompt is the heart of the quote feature.
-                    # We tell OpenAI to draw from a wide range of Ethiopian and Eritrean
-                    # figures across all fields — athletes, emperors, poets, artists, scholars.
-                    # The "Inspired by" attribution is honest — these are original quotes
-                    # in the spirit of real figures, not fake reproductions of real quotes.
-                    "content": """You are a motivational fitness coach inspired by Ethiopian and Eritrean history, culture, literature, art, philosophy, leadership, and athletic achievement.
-                    Generate short motivational quotes of 30 words or less inspired by the wisdom and values of notable Ethiopian and Eritrean figures.
-                    Draw inspiration from: Haile Gebrselassie, Abebe Bikila, Tirunesh Dibaba, Kenenisa Bekele, Emperor Haile Selassie, Emperor Menelik II, Taytu Betul, Alula Aba Nega, Afewerk Tekle, Tsegaye Gabre-Medhin, Bewketu Seyoum, Haddis Alemayehu, Birhanu Zerihun, Sahle-Work Zewde, and traditional Ethiopian and Eritrean proverbs.
-                    Quotes must be original — do not reproduce real quotations. Capture the spirit of perseverance, discipline, wisdom, creativity, resilience, cultural pride, and personal growth.
-                    Vary between athletes, poets, artists, historical leaders, scholars, Ethiopian proverbs, and Eritrean proverbs.
-                    Always attribute as: Inspired by [Name] or Ethiopian Proverb or Eritrean Proverb.
-                    Return JSON only: { "text": "...", "author": "..." }"""
-                },
-                {
-                    "role": "user",
-                    # We pass workout name and goal so the quote feels personal
-                    # to what the user just accomplished — not a generic response
-                    "content": f"Generate a motivational quote for someone who just completed a {workout_name} session with the goal to {goal}. The quote should relate to their effort, discipline, or pursuit of greatness. Return JSON only: {{\"text\": \"...\", \"author\": \"...\"}}"
-                }
-            ],
-            max_tokens=150,
-            response_format={"type": "json_object"}
-        )
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        # We ask OpenAI to only return REAL documented quotes —
+                        # not invented or paraphrased ones. This keeps the app honest
+                        # and the quotes feel more powerful because they are genuine.
+                        # If OpenAI is not confident a quote is real it should pick
+                        # a proverb instead — proverbs are always safe to use.
+                        "content": """You are a quote retrieval assistant.
 
+            Return only authentic, historically documented quotations from the listed Ethiopian and Eritrean figures or from well-known Ethiopian or Eritrean proverbs.
+
+            Do NOT create, rewrite, paraphrase, modernize, summarize, or invent quotes.
+            Do NOT generate quotes inspired by these figures.
+            If you are not confident that a quote is authentic and publicly attributed to the selected figure, choose another figure or proverb instead.
+
+            Prefer short motivational quotes that relate to discipline, perseverance, leadership, excellence, resilience, or achievement.
+
+            Possible sources include:
+            Haile Gebrselassie, Abebe Bikila, Tirunesh Dibaba, Kenenisa Bekele,
+            Emperor Haile Selassie, Emperor Menelik II, Taytu Betul,
+            Alula Aba Nega, Afewerk Tekle, Tsegaye Gabre-Medhin,
+            Bewketu Seyoum, Haddis Alemayehu, Birhanu Zerihun,
+            Sahle-Work Zewde, Ethiopian Proverbs, and Eritrean Proverbs.
+
+            Return JSON only: { "text": "...", "author": "..." }"""
+                    },
+                    {
+                        "role": "user",
+                        # We pass the workout context so the quote feels relevant
+                        # to what the user just accomplished
+                        "content": f"Return an authentic quote relevant to someone who completed a {workout_name} session with the goal to {goal}. Use only a real documented quotation or proverb. Return JSON only."
+                    }
+                ],
+                max_tokens=150,
+                response_format={"type": "json_object"}
+            )
         
         result = json.loads(response.choices[0].message.content)
         return {
