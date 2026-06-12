@@ -72,7 +72,6 @@ def get_nutrition(token: str, db: Session = Depends(get_db)):
     "nutrition": nutrition
 }
 
-
 @router.get("/meals/weekly")
 def get_weekly_meals(
     token: str,
@@ -84,13 +83,17 @@ def get_weekly_meals(
     if not user.weight or not user.height or not user.age:
         raise HTTPException(status_code=400, detail="Please complete onboarding first")
 
-    nutrition = calculate_nutrition(user)
-    weekly = generate_weekly_plan(db, user, nutrition, is_fasting)
-
-    return {
-        "week": weekly,
-        "nutrition_targets": nutrition
-    }
+    try:
+        nutrition = calculate_nutrition(user)
+        weekly = generate_weekly_plan(db, user, nutrition, is_fasting)
+        return {
+            "week": weekly,
+            "nutrition_targets": nutrition
+        }
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @router.get("/meals/swaps")
