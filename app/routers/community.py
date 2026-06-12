@@ -20,7 +20,7 @@ ALGORITHM = os.getenv("ALGORITHM")
 
 def get_user_from_token(token: str, db:Session):
     try: 
-        payload = jwt.decode(token, SECRET_KEY, algorithm = [ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms = [ALGORITHM])
         email = payload.get("sub")
         if not email:
             raise HTTPException(status_code=401, detail= "Invalid token")
