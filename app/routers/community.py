@@ -64,11 +64,12 @@ def get_posts(token: str, db: Session = Depends(get_db)):
     return result
 
 @router.post("/posts")
-def create_post(token: str, payload: dict, db: Session = Depends(get_db)):
+def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
+    user = get_user_from_token(token, db)
     text = body.text
     tag = body.tag
 
-    user = get_user_from_token(token, db)
+    
 
     #Basic validation - dont save empty posts
     if not text.strip():
