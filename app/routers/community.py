@@ -53,6 +53,7 @@ def get_posts(token: str, db: Session = Depends(get_db)):
             "id": post.id,
             "user_id": post.user_id,
             "name": author.name if author else "Unknown",
+            "gender": author.gender if author else None,
             "text": post.text,
             "tag": post.tag,
             "like_count": post.like_count,
