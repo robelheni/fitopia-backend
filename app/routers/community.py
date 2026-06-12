@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timeZone
 from app.database import get_db
 from app.models.community import CommunityPost, CommunityComment, PostLike
 from app.models.user import User
@@ -58,7 +58,7 @@ def get_posts(token: str, db: Session = Depends(get_db)):
             "tag": post.tag,
             "like_count": post.like_count,
             "comment_count": post.comment_count,
-            "created_at": post.created_at.isoformat(),
+            "created_at": post.created_at.replace(tzinfo=timezone.utc).isoformat(),
             "liked_by_me": liked,
         })
 
@@ -106,7 +106,8 @@ def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
         "tag": new_post.tag,
         "like_count": 0,
         "comment_count": 0,
-        "created_at": new_post.created_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+
         "liked_by_me":False,
     }
 
