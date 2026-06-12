@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime, timeZone
+from datetime import datetime, timezone
 from app.database import get_db
 from app.models.community import CommunityPost, CommunityComment, PostLike
 from app.models.user import User
