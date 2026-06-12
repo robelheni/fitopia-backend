@@ -65,8 +65,10 @@ def get_posts(token: str, db: Session = Depends(get_db)):
 
 @router.post("/posts")
 def create_post(token: str, payload: dict, db: Session = Depends(get_db)):
-    text = payload.get("text", "")
-    tag = payload.get("tag", "progress")
+    text = body.text
+    tag = body.tag
+
+    user = get_user_from_token(token, db)
 
     #Basic validation - dont save empty posts
     if not text.strip():
@@ -111,8 +113,7 @@ def create_post(token: str, payload: dict, db: Session = Depends(get_db)):
 @router.post("/posts/{post_id}/like")
 def toggle_like(post_id: int, token:str, db: Session = Depends(get_db)):
     user = get_user_from_token(token,db)
-    text = body.text
-    tag = body.tag
+
     # frist check the post actually exists
     post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
     if not post:
