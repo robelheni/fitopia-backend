@@ -169,8 +169,8 @@ def score_meal(meal, target_calories, target_protein, preferences, user_goal):
     # Calorie match score
     # Use scaled calories for scoring — not base calories
     meal_calories = meal.calories or 0
-    max_possible_calories = meal_calories * getattr(meal, 'max_servings', 1.5)
-    min_possible_calories = meal_calories * getattr(meal, 'min_servings', 0.75)
+    max_possible_calories = meal_calories * (getattr(meal, 'max_servings', None) or 1.5)
+    min_possible_calories = meal_calories * (getattr(meal, 'min_servings', None) or 0.75)
 
     # Check if target is reachable within scaling range
     if min_possible_calories <= target_calories <= max_possible_calories:
