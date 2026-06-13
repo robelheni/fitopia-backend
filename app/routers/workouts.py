@@ -511,7 +511,158 @@ def get_all_exercises(
         }
         for ex in exercises
     ]
+@router.get("/category-plan")
+def get_category_plan(
+    token: str,
+    category: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns a curated 6-8 exercise workout for a given category.
+    Equipment is determined by the category (home/gym), not the user's profile.
+    Fitness level IS respected — beginner users get easier exercises.
+    """
+    user = get_user_from_token(token, db)
+    fitness_level = user.fitness_level or "intermediate"
 
+    # Difficulty map — beginner only sees beginner exercises
+    # intermediate sees beginner + intermediate
+    # advanced sees all
+    difficulty_map = {
+        "beginner":     ["beginner"],
+        "intermediate": ["beginner", "intermediate"],
+        "advanced":     ["beginner", "intermediate", "advanced"],
+    }
+    allowed_difficulties = difficulty_map.get(fitness_level, ["beginner", "intermediate"])
+
+    # Category config — maps each category key to its query filters
+    # equipment and muscle_groups are used to filter the exercise database
+    category_config = {
+        # ── HOME ──────────────────────────────────────────
+        "full-body-home":  {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["chest", "back", "legs", "shoulders", "triceps", "biceps", "core"],
+            "limit":     8,
+        },
+        "upper-body-home": {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["chest", "back", "shoulders", "biceps", "triceps"],
+            "limit":     8,
+        },
+        "lower-body-home": {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["legs", "glutes", "hamstrings", "calves"],
+            "limit":     8,
+        },
+        "core-home": {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["core"],
+            "limit":     6,
+        },
+        "biceps-home": {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["biceps"],
+            "limit":     6,
+        },
+        "triceps-home": {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["triceps"],
+            "limit":     6,
+        },
+        "cardio-home": {
+            "equipment": ["bodyweight", "dumbbells", "bands"],
+            "muscles":   ["cardio"],
+            "limit":     6,
+        },
+
+        # ── GYM ───────────────────────────────────────────
+        "chest-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["chest"],
+            "limit":     6,
+        },
+        "back-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["back"],
+            "limit":     6,
+        },
+        "shoulders-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["shoulders"],
+            "limit":     6,
+        },
+        "triceps-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["triceps"],
+            "limit":     6,
+        },
+        "biceps-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["biceps"],
+            "limit":     6,
+        },
+        "legs-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["legs", "glutes", "hamstrings", "calves"],
+            "limit":     8,
+        },
+        "core-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["core"],
+            "limit":     6,
+        },
+        "cardio-gym": {
+            "equipment": ["gym", "bodyweight"],
+            "muscles":   ["cardio"],
+            "limit":     6,
+        },
+    }
+
+    config = category_config.get(category)
+    if not config:
+        raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
+
+    # Query exercises matching the category filters
+    # We pick priority 1 exercises first, then fill with priority 2
+    exercises = db.query(Exercise).filter(
+        Exercise.muscle_group.in_(config["muscles"]),
+        Exercise.equipment.in_(config["equipment"]),
+        Exercise.difficulty.in_(allowed_difficulties),
+        # Exclude warmups and finishers
+        ~Exercise.muscle_group.in_(["warmup", "finisher"]),
+    ).order_by(
+        Exercise.priority,
+        Exercise.muscle_group,
+    ).limit(config["limit"]).all()
+
+    # Build the response with full exercise details
+    result = []
+    for ex in exercises:
+        sets = ex.sets_range[0] if ex.sets_range else 3
+        reps = ex.reps_range[0] if ex.reps_range else 10
+        seconds = ex.seconds_range[0] if ex.seconds_range else 30
+
+        result.append({
+            "id": ex.id,
+            "name": ex.name,
+            "muscle_group": ex.muscle_group,
+            "equipment": ex.equipment,
+            "difficulty": ex.difficulty,
+            "sets": sets,
+            "reps": reps if not ex.is_timed else None,
+            "seconds": seconds if ex.is_timed else None,
+            "is_timed": ex.is_timed,
+            "instructions": ex.instructions or [],
+            "coaching_cues": ex.coaching_cues or [],
+            "video_url": ex.video_url or "",
+            "movement_pattern": ex.movement_pattern,
+        })
+
+    return {
+        "category": category,
+        "fitness_level": fitness_level,
+        "exercises": result,
+    }
 
 @router.get("/quote")
 def get_motivational_quote(
