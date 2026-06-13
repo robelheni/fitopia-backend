@@ -468,7 +468,7 @@ def get_all_exercises(
 ):
     # Base query — exclude warmups, finishers and bad muscle group values
     query = db.query(Exercise).filter(
-        ~Exercise.muscle_group.in_(["warmup", "finisher", "beginner", "compound", "cardio"])
+        ~Exercise.muscle_group.in_(["warmup", "finisher", "beginner", "compound"])
     )
 
     # muscle_group accepts comma-separated list e.g. "chest,shoulders,triceps"
@@ -522,6 +522,7 @@ def get_category_plan(
     category: str,
     db: Session = Depends(get_db)
 ):
+    
     """
     Returns a curated 6-8 exercise workout for a given category.
     Equipment is determined by the category (home/gym), not the user's profile.
@@ -578,6 +579,11 @@ def get_category_plan(
             "equipment": ["bodyweight", "dumbbells", "bands"],
             "muscles":   ["cardio"],
             "limit":     6,
+        },
+        "light-full-body": {
+            "equipment": ["bodyweight"],
+            "muscles": ["chest", "back", "legs", "shoulders", "core"],
+            "limit": 6,
         },
 
         # ── GYM ───────────────────────────────────────────
