@@ -463,33 +463,35 @@ def get_all_exercises(
     equipment: str = None,
     equipment_list: str = None,
     difficulty: str = None,
+    movement_pattern: str = None,
     db: Session = Depends(get_db)
 ):
-    """
-    Returns exercises from the database with optional filters.
-    Warmups and finishers are excluded — those are internal only.
-    Used for the workout library browser on the frontend.
-
-    Examples:
-    /workouts/exercises — all exercises
-    /workouts/exercises?muscle_group=chest — chest only
-    /workouts/exercises?muscle_group=chest&equipment=gym — gym chest only
-    """
-
-    # Base query — exclude warmups and finishers
+    # Base query — exclude warmups, finishers and bad muscle group values
     query = db.query(Exercise).filter(
-        ~Exercise.muscle_group.in_(["warmup", "finisher"])
+        ~Exercise.muscle_group.in_(["warmup", "finisher", "beginner", "compound", "cardio"])
     )
 
-    # Apply muscle group filter if provided
+    # muscle_group accepts comma-separated list e.g. "chest,shoulders,triceps"
     if muscle_group:
-        query = query.filter(Exercise.muscle_group == muscle_group)
+        groups = [g.strip() for g in muscle_group.split(",")]
+        query = query.filter(Exercise.muscle_group.in_(groups))
 
-    # Apply equipment filter if provided
-    if equipment:
+    # equipment_list accepts multiple e.g. "bodyweight,dumbbells"
+    if equipment_list:
+        equip = [e.strip() for e in equipment_list.split(",")]
+        query = query.filter(Exercise.equipment.in_(equip))
+    elif equipment:
         query = query.filter(Exercise.equipment == equipment)
 
-    # Order by muscle group then priority — best exercises first
+    # difficulty filter e.g. "beginner" for fasting workouts
+    if difficulty:
+        query = query.filter(Exercise.difficulty == difficulty)
+
+    # movement_pattern accepts comma-separated list
+    if movement_pattern:
+        patterns = [p.strip() for p in movement_pattern.split(",")]
+        query = query.filter(Exercise.movement_pattern.in_(patterns))
+
     exercises = query.order_by(
         Exercise.muscle_group,
         Exercise.priority
@@ -502,15 +504,18 @@ def get_all_exercises(
             "muscle_group": ex.muscle_group,
             "equipment": ex.equipment,
             "movement_pattern": ex.movement_pattern,
+            "difficulty": ex.difficulty,
             "sets_range": ex.sets_range,
             "reps_range": ex.reps_range,
             "is_timed": ex.is_timed,
             "seconds_range": ex.seconds_range,
             "description": ex.description,
+            "instructions": ex.instructions,
             "video_url": ex.video_url,
         }
         for ex in exercises
     ]
+    
 @router.get("/category-plan")
 def get_category_plan(
     token: str,
