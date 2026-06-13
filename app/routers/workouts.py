@@ -461,6 +461,8 @@ def get_exercise(
 def get_all_exercises(
     muscle_group: str = None,
     equipment: str = None,
+    equipment_list: str = None,
+    difficulty: str = None,
     db: Session = Depends(get_db)
 ):
     """
