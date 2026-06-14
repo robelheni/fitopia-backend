@@ -60,6 +60,7 @@ def get_user_by_username(db: Session, username: str):
 
 @router.post("/signup", response_model=UserResponse)
 def signup(user: UserCreate, db:Session = Depends(get_db)):
+    print(f"Signup received - name: {user.name}, email: {user.email}, username: {user.username}")
 
     #check if email already exists
     existing_user = get_user_by_email(db, user.email)
