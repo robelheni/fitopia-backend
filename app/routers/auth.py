@@ -52,6 +52,9 @@ def create_access_token(data:dict) -> str:
 def get_user_by_email(db: Session, email: str):
     return db.query(User).filter(User.email == email.lower().strip()).first()
 
+def get_user_by_username(db: Session, username: str):
+    return db.query(User).filter(User.username == username.lower().strip()).first()
+
 
 # ─── Endpoints ──────────────────────────────────────────────────────
 
@@ -96,28 +99,29 @@ def signup(user: UserCreate, db:Session = Depends(get_db)):
 
     return new_user
 
-@router.post("/login", response_model = Token)
+@router.post("/login", response_model=Token)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
+    
+    # Detect if the user typed an email or username
+    # Emails always contain @ — usernames never do
+    if '@' in credentials.email:
+        user = get_user_by_email(db, credentials.email.lower().strip())
+    else:
+        user = get_user_by_username(db, credentials.email.lower().strip())
 
-    user = get_user_by_email(db, credentials.email.lower().strip())
-
-    #check user exists and password is correct
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
-            status_code = status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers = {"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email, username or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    #create JWT token
     access_token = create_access_token(data={"sub": user.email})
 
     return {
         "access_token": access_token,
         "token_type": "Bearer"
     }
-
-
 @router.get("/me", response_model=UserResponse)
 def get_current_user(token:str, db:Session = Depends(get_db)):
     """get currently logged in user from their token"""
