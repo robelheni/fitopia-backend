@@ -7,13 +7,16 @@ class UserCreate(BaseModel):
     name: str 
     email: str 
     password: str 
+    username:Optional[str] = None
     referral_code: Optional[str] = None
 
 # Wha we send back after signup or login - never include password
 class UserResponse(BaseModel):
-    id:int 
-    name:str 
-    email:str 
+    id: int 
+    name: str 
+    email: str
+    username: Optional[str] = None
+    gender: Optional[str] = None
     is_pro: bool 
     created_at: datetime
 

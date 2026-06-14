@@ -66,6 +66,16 @@ def signup(user: UserCreate, db:Session = Depends(get_db)):
             detail = "An account with email already exists"
         )
 
+    # Check if username already taken
+    if user.username:
+        existing_username = db.query(User).filter(User.username == user.username.lower().strip()).first()
+        if existing_username:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This username is already taken"
+            )
+
+
     hashed= hash_password(user.password)
 
     referral = generate_referral_code(user.name)
@@ -74,6 +84,7 @@ def signup(user: UserCreate, db:Session = Depends(get_db)):
     new_user = User(
         name=user.name,
         email=user.email.lower().strip(),
+        username=user.username.lower().strip() if user.username else None,
         hashed_password=hashed,
         referral_code=referral,
         referred_by=user.referral_code

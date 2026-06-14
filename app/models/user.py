@@ -13,6 +13,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    username= Column(String, unique=True, nullable=True)
 
     # onboarding answers
     fitness_level= Column(String, nullable= True)
