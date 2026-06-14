@@ -77,7 +77,7 @@ def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail = "Post text cannot be empty")
 
     #validate the tag is one of the three allowed values
-    allowed_tags = ["progress","questions", "challenges"]
+    allowed_tags = ["progress","questions", "challenges", "general"]
     if tag not in allowed_tags:
         raise HTTPException(status_code=400, detail=f"Tag must be one of {allowed_tags}")
 
