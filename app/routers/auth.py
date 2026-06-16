@@ -12,6 +12,7 @@ import os
 import random
 import string
 from app.schemas.user import OnboardingUpdate
+from typing import Optional
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
