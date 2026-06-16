@@ -7,8 +7,9 @@ class UserCreate(BaseModel):
     name: str 
     email: str 
     password: str 
-    username:Optional[str] = None
+    
     referral_code: Optional[str] = None
+    username:Optional[str] = None
 
 # Wha we send back after signup or login - never include password
 class UserResponse(BaseModel):
