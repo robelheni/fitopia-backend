@@ -28,6 +28,41 @@ def get_user_from_token(token: str, db: Session):
     return user
 
 
+
+
+
+# Returns up to 20 matches — enough for a search result list
+@router.get("/search")
+def search_users(q: str, token: str, db: Session = Depends(get_db)):
+    current_user = get_user_from_token(token, db)
+
+    # Don't search if the query is too short — avoids returning
+    if len(q.strip()) < 2:
+        return []
+
+    # Build the search pattern — %q% means "contains q anywhere"
+    pattern = f"%{q.strip()}%"
+
+    # Search both name and username columns
+    # .ilike() is case-insensitive LIKE — so "heni" matches "Heni"
+    # | is the OR operator in SQLAlchemy filters
+    results = db.query(User).filter(
+        (User.name.ilike(pattern)) | (User.username.ilike(pattern)),
+        # Exclude the current user from results — no point finding yourself
+        User.id != current_user.id,
+    ).limit(20).all()
+
+    return [
+        {
+            "id": user.id,
+            "name": user.name,
+            "username": user.username,
+            "gender": user.gender,
+            "bio": user.bio,
+        }
+        for user in results
+    ]
+
 # GET /users/{user_id}/profile
 # Returns everything needed to render a user's profile screen:
 # their name, username, post count, follower count, following count,
