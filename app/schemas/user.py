@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     email: str
     username: Optional[str] = None
     gender: Optional[str] = None
+    bio: Optional[str] = None
     is_pro: bool 
     created_at: datetime
 

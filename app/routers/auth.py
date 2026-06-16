@@ -12,6 +12,11 @@ import random
 import string
 from app.schemas.user import OnboardingUpdate
 
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    username: Optional[str] = None
+    bio: Optional[str] = None
+
 load_dotenv()
 
 
@@ -223,4 +228,61 @@ def save_onboarding(
     db.commit()
     db.refresh(user)
 
+    return user
+
+@router.put("/update-profile")
+def update_profile(
+    updates: ProfileUpdate,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Lets the user update their name, username, and bio.
+    Only updates fields that were actually provided — 
+    if you only send bio, name and username stay the same.
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = get_user_by_email(db, email)
+    if user is None:
+        raise credentials_exception
+
+    # Only update fields that were actually sent
+    # This is called a "partial update" — we don't overwrite 
+    # everything, just what the user explicitly changed
+    if updates.name is not None and updates.name.strip():
+        user.name = updates.name.strip()
+
+    if updates.username is not None:
+        # Check the new username isn't already taken by someone else
+        # We exclude the current user from this check — otherwise
+        # saving without changing username would fail
+        existing = db.query(User).filter(
+            User.username == updates.username.lower().strip(),
+            User.id != user.id  # not the current user
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="This username is already taken"
+            )
+        user.username = updates.username.lower().strip()
+
+    if updates.bio is not None:
+        # Strip whitespace but allow empty string to clear the bio
+        user.bio = updates.bio.strip()
+
+    db.commit()
+    db.refresh(user)
     return user
