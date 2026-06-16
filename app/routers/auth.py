@@ -6,6 +6,7 @@ from passlib.context import CryptContext
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, TokenData 
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import os 
 import random
