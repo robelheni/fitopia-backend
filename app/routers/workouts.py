@@ -134,11 +134,19 @@ def get_year_stats(token: str, year: int, db: Session = Depends(get_db)):
         WorkoutLog.user_id == user.id,
     ).all()
 
-    year_dates = [
-        log.date.isoformat()
+    completed = [
+        {
+            "date": log.date.isoformat(),
+            "workout_name": log.workout_name,
+        }
         for log in logs
         if log.date.year == year
     ]
+
+    training_days = []
+    if user.training_days:
+        training_days = [d.strip() for d in user.training_days.split(",")]
+        
     return {
         "year": year,
         "completed_dates": year_dates,
