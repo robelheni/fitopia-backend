@@ -778,11 +778,11 @@ def get_motivational_quote(
 
     # If no API key is configured return a solid default rather than crashing
     result = json.loads(response.choices[0].message.content)
-        print(f"OpenAI quote response: {result}")  # temporary debug line
-        return {
-            "text": result.get("text", "You showed up. You did the work. That is what separates you."),
-            "author": result.get("author", "Fitopia")
-        }
+    print(f"OpenAI quote response: {result}")  # temporary debug line
+    return {
+        "text": result.get("text", "You showed up. You did the work. That is what separates you."),
+        "author": result.get("author", "Fitopia")
+    }
 
     try:
         client = openai.OpenAI(api_key=openai_key)
