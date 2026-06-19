@@ -127,7 +127,7 @@ def get_streak(token: str, db: Session = Depends(get_db)):
     }
 
 @router.get("/year-stats")
-def get_year_stats(token:str, year:str, db: Session = Depends(get_db)):
+def get_year_stats(token: str, year: int, db: Session = Depends(get_db)):
     user = get_user_from_token(token, db)
 
     logs = db.query(WorkoutLog).filter(
@@ -137,8 +137,7 @@ def get_year_stats(token:str, year:str, db: Session = Depends(get_db)):
     year_dates = [
         log.date.isoformat()
         for log in logs
-        if log.date.year ==year
-        
+        if log.date.year == year
     ]
     return {
         "year": year,
