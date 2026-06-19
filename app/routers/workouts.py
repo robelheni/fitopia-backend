@@ -777,10 +777,11 @@ def get_motivational_quote(
     openai_key = os.getenv("OPENAI_API_KEY")
 
     # If no API key is configured return a solid default rather than crashing
-    if not openai_key:
+    result = json.loads(response.choices[0].message.content)
+        print(f"OpenAI quote response: {result}")  # temporary debug line
         return {
-            "text": "You didn't come this far to only come this far. Every set you completed today is proof of who you are becoming.",
-            "author": "Fitopia"
+            "text": result.get("text", "You showed up. You did the work. That is what separates you."),
+            "author": result.get("author", "Fitopia")
         }
 
     try:
