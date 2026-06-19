@@ -126,6 +126,25 @@ def get_streak(token: str, db: Session = Depends(get_db)):
         "total_workouts": len(logs)
     }
 
+@router.get("/year-stats")
+def get_year_stats(token:str, year:str, db: Session = Depends(get_db)):
+    user = get_user_from_token(token, db)
+
+    logs = db.query(WorkoutLog).filter(
+        WorkoutLog.user_id == user.id,
+    ).all()
+
+    year_dates = [
+        log.date.isoformat()
+        for log in logs
+        if log.date.year ==year
+        
+    ]
+    return {
+        "year": year,
+        "completed_dates": year_dates,
+    }
+
 @router.get("/plan")
 def get_workout_plan(token:str, db: Session = Depends(get_db)):
     user = get_user_from_token(token, db)
@@ -827,3 +846,4 @@ Return JSON only: { "text": "...", "author": "Fitopia" }"""
             "text": random.choice(fallbacks),
             "author": "Fitopia"
         }
+
