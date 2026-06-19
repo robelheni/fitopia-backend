@@ -8,6 +8,8 @@ from app.routers.auth import get_user_by_email
 from jose import JWTError, jwt
 import os
 from pydantic import BaseModel
+from app.models.post_report import PostReport
+
 
 class PostCreate(BaseModel):
     text: str
@@ -212,3 +214,63 @@ def create_comment(post_id:int, token: str, text: str, db: Session = Depends(get
         "text": new_comment.text,
         "created_at":new_comment.created_at.isoformat(),
     }
+
+@router.delete("/posts/{post_id}")
+def delete_post(post_id: int, token: str, db: Session = Depends(get_db)):
+    """
+    Deletes a community post. Only the post's original author can delete it —
+    this is a critical security check. Without verifying ownership, anyone
+    with a post ID could delete anyone else's content.
+    """
+    user = get_user_from_token(token, db)
+
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Ownership check — this is the security-critical line
+    if post.user_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own posts")
+
+    # Also clean up related likes and comments so we don't leave orphaned rows
+    db.query(PostLike).filter(PostLike.post_id == post_id).delete()
+    db.query(CommunityComment).filter(CommunityComment.post_id == post_id).delete()
+
+    db.delete(post)
+    db.commit()
+
+    return {"message": "Post deleted"}
+
+
+
+@router.post("/posts/{post_id}/report")
+def report_post(post_id: int, token: str, reason: str = "Not specified", db: Session = Depends(get_db)):
+    """
+    Logs a report against a post. We don't auto-delete or hide anything here —
+    reports just get recorded so they can be reviewed later. This keeps the
+    feature simple now while still giving you real signal on problem content
+    as the community grows.
+    """
+    user = get_user_from_token(token, db)
+
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Prevent the same user from reporting the same post multiple times
+    existing = db.query(PostReport).filter(
+        PostReport.post_id == post_id,
+        PostReport.reported_by == user.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already reported this post")
+
+    report = PostReport(
+        post_id=post_id,
+        reported_by=user.id,
+        reason=reason
+    )
+    db.add(report)
+    db.commit()
+
+    return {"message": "Post reported"}
