@@ -801,32 +801,23 @@ def get_motivational_quote(
             messages=[
                 {
                     "role": "system",
-                    # We tell OpenAI to act as a coach who truly understands
-                    # the emotional high of finishing a hard workout.
-                    # The quote should feel like it was written for THIS person
-                    # at THIS exact moment — not a generic motivational poster.
-                    # We attribute it to Fitopia so we never fake real people's words.
-                    "content": """You are a world-class fitness coach and motivational writer.
-Your job is to write a single powerful post-workout quote that makes someone feel incredible after finishing their session.
+                    "content": """You are a fitness quote curator with deep knowledge of real, documented quotes from famous athletes, coaches, and motivational figures.
 
-The quote must:
-- Feel personal and earned — like it was written specifically for this moment
-- Be emotionally powerful and inspiring
-- Relate directly to the effort of completing a workout
-- Be 1-3 sentences maximum
-- Sound like something a great coach would say to you after a hard session
-- NOT be generic or cliche
-- NOT reference specific exercises or equipment
+        Your job is to recall and return ONE real quote that an actual well-known person has said — never invent a new quote and attribute it to someone.
 
-Always attribute the quote to "Fitopia".
+        Rules:
+        - The quote MUST be something the person genuinely said — pulled from real interviews, books, or documented history.
+        - NEVER fabricate a quote and assign it to a real person, even if it sounds plausible.
+        - If you are not fully confident a quote is real and accurately attributed, choose a different, more well-documented quote instead.
+        - Prefer widely-quoted, well-documented figures: Muhammad Ali, Arnold Schwarzenegger, Haile Gebrselassie, Tirunesh Dibaba, Serena Williams, Michael Jordan, Kobe Bryant, or similar athletes and coaches known for motivational quotes.
+        - The quote should feel relevant to finishing a hard workout, discipline, or perseverance — but it does not need to be exactly about exercise.
+        - Return the quote exactly as documented, do not paraphrase or modify it.
 
-Return JSON only: { "text": "...", "author": "Fitopia" }"""
+        Return JSON only: { "text": "...", "author": "Real Person's Name" }"""
                 },
                 {
                     "role": "user",
-                    # Pass the specific workout and goal context so the quote
-                    # feels tailored to what this person just accomplished
-                    "content": f"Write a post-workout quote for someone who just completed a {workout_name} session. Their goal is to {goal}. Make it feel powerful and earned. Return JSON only."
+                    "content": f"Recall a real, documented quote from a well-known athlete or motivational figure about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
                 }
             ],
             max_tokens=150,
