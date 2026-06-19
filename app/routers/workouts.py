@@ -810,15 +810,14 @@ def get_motivational_quote(
         - The quote MUST be something the person genuinely said — pulled from real interviews, books, or documented history.
         - NEVER fabricate a quote and assign it to a real person, even if it sounds plausible.
         - If you are not fully confident a quote is real and accurately attributed, choose a different, more well-documented quote instead.
-        - Prefer widely-quoted, well-documented figures: Muhammad Ali, Arnold Schwarzenegger, Haile Gebrselassie, Tirunesh Dibaba, Serena Williams, Michael Jordan, Kobe Bryant, or similar athletes and coaches known for motivational quotes.
-        - The quote should feel relevant to finishing a hard workout, discipline, or perseverance — but it does not need to be exactly about exercise.
+        - Prefer widely-quoted, well-documented figures from a range of backgrounds — athletes (Muhammad Ali, Arnold Schwarzenegger, Haile Gebrselassie, Tirunesh Dibaba, Serena Williams, Michael Jordan, Kobe Bryant), philosophers (Marcus Aurelius, Aristotle, Seneca, Nietzsche, Confucius), scientists (Isaac Newton, Albert Einstein), and other historical figures known for documented quotes about discipline, effort, and resilience.        - The quote should feel relevant to finishing a hard workout, discipline, or perseverance — but it does not need to be exactly about exercise.
         - Return the quote exactly as documented, do not paraphrase or modify it.
 
         Return JSON only: { "text": "...", "author": "Real Person's Name" }"""
                 },
                 {
                     "role": "user",
-                    "content": f"Recall a real, documented quote from a well-known athlete or motivational figure about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
+                    "content": f"Recall a real, documented quote from a well-known person — an athlete, philosopher, scientist, or historical figure — about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
                 }
             ],
             max_tokens=150,
