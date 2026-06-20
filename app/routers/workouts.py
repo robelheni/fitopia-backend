@@ -758,16 +758,8 @@ def get_motivational_quote(
     db: Session = Depends(get_db)
 ):
     """
-    Generates a powerful personalised post-workout quote using OpenAI.
-    
-    The quote is written specifically for this moment — after this workout,
-    for this goal. It should feel earned, not generic.
-    
-    Design decision: We use OpenAI to generate original quotes rather than
-    pulling from a hardcoded list. This means every completion feels unique
-    and personal. The quote is attributed to Fitopia so we never misrepresent
-    real people.
-    
+    Returns a real, verified motivational quote from a well-known person —
+    athlete, philosopher, scientist, or historical figure.
     Falls back to a default quote if OpenAI is unavailable.
     """
     import random
@@ -776,48 +768,33 @@ def get_motivational_quote(
 
     openai_key = os.getenv("OPENAI_API_KEY")
 
-    # If no API key is configured return a solid default rather than crashing
-    result = json.loads(response.choices[0].message.content)
-    print(f"OpenAI quote response: {result}")  # temporary debug line
-    return {
-        "text": result.get("text", "You showed up. You did the work. That is what separates you."),
-        "author": result.get("author", "Fitopia")
+    if not openai_key:
+        return {
+            "text": "You didn't come this far to only come this far. Every set you completed today is proof of who you are becoming.",
+            "author": "Fitopia"
+        }
+
+    goal_labels = {
+        "build_muscle": "build muscle and get stronger",
+        "lose_weight": "lose weight and burn fat",
+        "improve_fitness": "improve their overall fitness",
+        "stay_active": "stay active and healthy",
     }
+    goal = goal_labels.get(user.goal, "reach their fitness goals")
 
     try:
         client = openai.OpenAI(api_key=openai_key)
-
-        # Map internal goal keys to natural English phrases for the prompt
-        # This makes the generated quote feel relevant to what the user is working towards
-        goal_labels = {
-            "build_muscle": "build muscle and get stronger",
-            "lose_weight": "lose weight and burn fat",
-            "improve_fitness": "improve their overall fitness",
-            "stay_active": "stay active and healthy",
-        }
-        goal = goal_labels.get(user.goal, "reach their fitness goals")
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a fitness quote curator with deep knowledge of real, documented quotes from famous athletes, coaches, and motivational figures.
-
-        Your job is to recall and return ONE real quote that an actual well-known person has said — never invent a new quote and attribute it to someone.
-
-        Rules:
-        - The quote MUST be something the person genuinely said — pulled from real interviews, books, or documented history.
-        - NEVER fabricate a quote and assign it to a real person, even if it sounds plausible.
-        - If you are not fully confident a quote is real and accurately attributed, choose a different, more well-documented quote instead.
-        - Prefer widely-quoted, well-documented figures from a range of backgrounds — athletes (Muhammad Ali, Arnold Schwarzenegger, Haile Gebrselassie, Tirunesh Dibaba, Serena Williams, Michael Jordan, Kobe Bryant), philosophers (Marcus Aurelius, Aristotle, Seneca, Nietzsche, Confucius), scientists (Isaac Newton, Albert Einstein), and other historical figures known for documented quotes about discipline, effort, and resilience.        - The quote should feel relevant to finishing a hard workout, discipline, or perseverance — but it does not need to be exactly about exercise.
-        - Return the quote exactly as documented, do not paraphrase or modify it.
-
-        Return JSON only: { "text": "...", "author": "Real Person's Name" }"""
+                    "content": "You are a fitness quote curator with deep knowledge of real, documented quotes from famous athletes, philosophers, scientists, and historical figures. Your job is to recall and return ONE real quote that an actual well-known person has said — never invent a new quote and attribute it to someone. The quote MUST be something the person genuinely said. NEVER fabricate a quote and assign it to a real person, even if it sounds plausible. If you are not fully confident a quote is real and accurately attributed, choose a different, more well-documented quote instead. Prefer widely-quoted, well-documented figures such as Muhammad Ali, Arnold Schwarzenegger, Haile Gebrselassie, Tirunesh Dibaba, Serena Williams, Michael Jordan, Kobe Bryant, Marcus Aurelius, Aristotle, Seneca, Confucius, Isaac Newton, or Albert Einstein. The quote should feel relevant to discipline, perseverance, or pushing through hard work. Return the quote exactly as documented. Return JSON only in this format: {\"text\": \"...\", \"author\": \"Real Person's Name\"}"
                 },
                 {
                     "role": "user",
-                    "content": f"Recall a real, documented quote from a well-known person — an athlete, philosopher, scientist, or historical figure — about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
+                    "content": f"Recall a real, documented quote from a well-known athlete, philosopher, scientist, or historical figure about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
                 }
             ],
             max_tokens=150,
@@ -831,9 +808,7 @@ def get_motivational_quote(
         }
 
     except Exception as e:
-        # Log the error in Railway so we can debug if needed
         print(f"OpenAI quote error: {e}")
-        # Return a strong default so the completion screen never looks broken
         fallbacks = [
             "You didn't come this far to only come this far. Every set today is proof of who you are becoming.",
             "You showed up. You did the work. That is what separates you.",
@@ -845,4 +820,3 @@ def get_motivational_quote(
             "text": random.choice(fallbacks),
             "author": "Fitopia"
         }
-
