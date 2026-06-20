@@ -794,7 +794,7 @@ def get_motivational_quote(
                 },
                 {
                     "role": "user",
-                    "content": f"Recall a real, documented quote from a well-known athlete, philosopher, scientist, or historical figure about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
+                    "content": f"Recall a real, documented quote from a well-known person about discipline, perseverance, or pushing through hard work. Choose someone different and varied each time — avoid the most overused names. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
                 }
             ],
             max_tokens=150,
