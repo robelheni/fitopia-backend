@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.routers import auth, plan, workouts, community as community_router, users
-from app.models import user, meal, workout_log, exercise, liked_exercise, community, follow, post_report
+from app.models import user, meal, workout_log, exercise, liked_exercise, community, follow, post_report, quote
 
 
 #Create all database tables
