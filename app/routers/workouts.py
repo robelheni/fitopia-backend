@@ -11,6 +11,7 @@ import json
 from app.workout_generator import generate_weekly_plan
 from app.models.exercise import Exercise
 from app.models.liked_exercise import LikedExercise
+from app.models.quote import Quote
 
 router = APIRouter(prefix="/workouts", tags=["Workouts"])
 
@@ -758,95 +759,26 @@ def get_motivational_quote(
     db: Session = Depends(get_db)
 ):
     """
-    Returns a real, verified motivational quote from a randomly selected
-    person off our curated list. We control the randomness ourselves in
-    Python rather than asking OpenAI to "pick someone" — this guarantees
-    genuine variety, since OpenAI tends to cluster heavily around the same
-    few famous names when asked to choose on its own.
+    Returns a random motivational quote from our curated quotes table.
+    
     """
     import random
 
     user = get_user_from_token(token, db)
 
-    openai_key = os.getenv("OPENAI_API_KEY")
 
-    if not openai_key:
+    all_quotes = db.query(Quote).all()
+
+    if not all_quotes:
+        # Safety net in case the table is ever empty
         return {
             "text": "You didn't come this far to only come this far. Every set you completed today is proof of who you are becoming.",
             "author": "Fitopia"
         }
 
-    goal_labels = {
-        "build_muscle": "build muscle and get stronger",
-        "lose_weight": "lose weight and burn fat",
-        "improve_fitness": "improve their overall fitness",
-        "stay_active": "stay active and healthy",
+    chosen = random.choice(all_quotes)
+
+    return {
+        "text": chosen.text,
+        "author": chosen.author or "Unknown"
     }
-    goal = goal_labels.get(user.goal, "reach their fitness goals")
-
-    # Curated pool of 25 people known for real, documented quotes about
-    # discipline, mental toughness, and perseverance. We pick randomly
-    # from this list ourselves — the randomness lives in our code, not
-    # in OpenAI's judgment, which is what actually guarantees variety.
-    quote_people = [
-        "Kobe Bryant", "Michael Jordan", "Muhammad Ali", "David Goggins",
-        "Serena Williams", "Usain Bolt", "Cristiano Ronaldo", "Roger Federer",
-        "Manny Pacquiao", "George Foreman",
-        "Jocko Willink", "Admiral William H. McRaven", "Miyamoto Musashi",
-        "James Stockdale", "Ryan Holiday",
-        "Marcus Aurelius", "Epictetus", "Seneca", "Musonius Rufus",
-        "James Clear", "Stephen Covey", "Jim Rohn", "Zig Ziglar", "Brian Tracy",
-        "Andrew Huberman", "Peter Attia", "Arnold Schwarzenegger",
-        "Joe Weider", "Jack LaLanne",
-    ]
-
-    chosen_person = random.choice(quote_people)
-
-    fallbacks = [
-        "You didn't come this far to only come this far. Every set today is proof of who you are becoming.",
-        "You showed up. You did the work. That is what separates you.",
-        "The person you are becoming is worth every rep, every drop of sweat, every hard day.",
-        "Today you chose discipline over comfort. That choice compounds every single day.",
-        "Your body heard you today. It got stronger. So did your mind.",
-    ]
-
-    try:
-        client = openai.OpenAI(api_key=openai_key)
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a fitness quote curator with deep knowledge of real, documented quotes. You will be given the name of a specific real person. Your job is to recall ONE real, genuine quote that this exact person actually said about discipline, perseverance, or pushing through hard work. NEVER invent or fabricate a quote and attribute it to them. If you do not know a real, documented quote from this specific person on this topic, respond with exactly: {\"text\": null, \"author\": null} — do not make something up. Return JSON only in this format: {\"text\": \"...\", \"author\": \"Name\"} or {\"text\": null, \"author\": null} if unsure."
-                },
-                {
-                    "role": "user",
-                    "content": f"Give me a real, documented quote from {chosen_person} about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. If you do not know a genuine quote from {chosen_person} on this topic, return {{\"text\": null, \"author\": null}} instead of making one up."
-                }
-            ],
-            max_tokens=150,
-            temperature=1.0,
-            response_format={"type": "json_object"}
-        )
-
-        result = json.loads(response.choices[0].message.content)
-
-        # If OpenAI wasn't confident a real quote exists, fall back gracefully
-        if not result.get("text"):
-            return {
-                "text": random.choice(fallbacks),
-                "author": "Fitopia"
-            }
-
-        return {
-            "text": result.get("text"),
-            "author": result.get("author", chosen_person)
-        }
-
-    except Exception as e:
-        print(f"OpenAI quote error: {e}")
-        return {
-            "text": random.choice(fallbacks),
-            "author": "Fitopia"
-        }
