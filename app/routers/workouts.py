@@ -758,9 +758,11 @@ def get_motivational_quote(
     db: Session = Depends(get_db)
 ):
     """
-    Returns a real, verified motivational quote from a well-known person —
-    athlete, philosopher, scientist, or historical figure.
-    Falls back to a default quote if OpenAI is unavailable.
+    Returns a real, verified motivational quote from a randomly selected
+    person off our curated list. We control the randomness ourselves in
+    Python rather than asking OpenAI to "pick someone" — this guarantees
+    genuine variety, since OpenAI tends to cluster heavily around the same
+    few famous names when asked to choose on its own.
     """
     import random
 
@@ -782,6 +784,32 @@ def get_motivational_quote(
     }
     goal = goal_labels.get(user.goal, "reach their fitness goals")
 
+    # Curated pool of 25 people known for real, documented quotes about
+    # discipline, mental toughness, and perseverance. We pick randomly
+    # from this list ourselves — the randomness lives in our code, not
+    # in OpenAI's judgment, which is what actually guarantees variety.
+    quote_people = [
+        "Kobe Bryant", "Michael Jordan", "Muhammad Ali", "David Goggins",
+        "Serena Williams", "Usain Bolt", "Cristiano Ronaldo", "Roger Federer",
+        "Manny Pacquiao", "George Foreman",
+        "Jocko Willink", "Admiral William H. McRaven", "Miyamoto Musashi",
+        "James Stockdale", "Ryan Holiday",
+        "Marcus Aurelius", "Epictetus", "Seneca", "Musonius Rufus",
+        "James Clear", "Stephen Covey", "Jim Rohn", "Zig Ziglar", "Brian Tracy",
+        "Andrew Huberman", "Peter Attia", "Arnold Schwarzenegger",
+        "Joe Weider", "Jack LaLanne",
+    ]
+
+    chosen_person = random.choice(quote_people)
+
+    fallbacks = [
+        "You didn't come this far to only come this far. Every set today is proof of who you are becoming.",
+        "You showed up. You did the work. That is what separates you.",
+        "The person you are becoming is worth every rep, every drop of sweat, every hard day.",
+        "Today you chose discipline over comfort. That choice compounds every single day.",
+        "Your body heard you today. It got stronger. So did your mind.",
+    ]
+
     try:
         client = openai.OpenAI(api_key=openai_key)
 
@@ -790,32 +818,34 @@ def get_motivational_quote(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a fitness quote curator with deep knowledge of real, documented quotes from famous athletes, philosophers, scientists, and historical figures. Your job is to recall and return ONE real quote that an actual well-known person has said — never invent a new quote and attribute it to someone. The quote MUST be something the person genuinely said. NEVER fabricate a quote and assign it to a real person, even if it sounds plausible. If you are not fully confident a quote is real and accurately attributed, choose a different, more well-documented quote instead. Prefer widely-quoted, well-documented figures such as Muhammad Ali, Arnold Schwarzenegger, Haile Gebrselassie, Tirunesh Dibaba, Serena Williams, Michael Jordan, Kobe Bryant, Marcus Aurelius, Aristotle, Seneca, Confucius, Isaac Newton, or Albert Einstein. The quote should feel relevant to discipline, perseverance, or pushing through hard work. Return the quote exactly as documented. Return JSON only in this format: {\"text\": \"...\", \"author\": \"Real Person's Name\"}"
+                    "content": "You are a fitness quote curator with deep knowledge of real, documented quotes. You will be given the name of a specific real person. Your job is to recall ONE real, genuine quote that this exact person actually said about discipline, perseverance, or pushing through hard work. NEVER invent or fabricate a quote and attribute it to them. If you do not know a real, documented quote from this specific person on this topic, respond with exactly: {\"text\": null, \"author\": null} — do not make something up. Return JSON only in this format: {\"text\": \"...\", \"author\": \"Name\"} or {\"text\": null, \"author\": null} if unsure."
                 },
                 {
                     "role": "user",
-                    "content": f"Recall a real, documented quote from a well-known person about discipline, perseverance, or pushing through hard work. Choose someone different and varied each time — avoid the most overused names. This is for someone who just completed a {workout_name} session with the goal to {goal}. Only return a quote you are confident is real. Return JSON only."
+                    "content": f"Give me a real, documented quote from {chosen_person} about discipline, perseverance, or pushing through hard work. This is for someone who just completed a {workout_name} session with the goal to {goal}. If you do not know a genuine quote from {chosen_person} on this topic, return {{\"text\": null, \"author\": null}} instead of making one up."
                 }
             ],
             max_tokens=150,
+            temperature=1.0,
             response_format={"type": "json_object"}
         )
 
         result = json.loads(response.choices[0].message.content)
+
+        # If OpenAI wasn't confident a real quote exists, fall back gracefully
+        if not result.get("text"):
+            return {
+                "text": random.choice(fallbacks),
+                "author": "Fitopia"
+            }
+
         return {
-            "text": result.get("text", "You showed up. You did the work. That is what separates you."),
-            "author": result.get("author", "Fitopia")
+            "text": result.get("text"),
+            "author": result.get("author", chosen_person)
         }
 
     except Exception as e:
         print(f"OpenAI quote error: {e}")
-        fallbacks = [
-            "You didn't come this far to only come this far. Every set today is proof of who you are becoming.",
-            "You showed up. You did the work. That is what separates you.",
-            "The person you are becoming is worth every rep, every drop of sweat, every hard day.",
-            "Today you chose discipline over comfort. That choice compounds every single day.",
-            "Your body heard you today. It got stronger. So did your mind.",
-        ]
         return {
             "text": random.choice(fallbacks),
             "author": "Fitopia"
