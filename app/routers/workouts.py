@@ -258,6 +258,7 @@ def get_workout_plan(token:str, db: Session = Depends(get_db)):
             "exercises": exercises,
             "cardio_circuit": cardio_circuit,
             "finisher": finisher,
+            "duration": user.workout_duration or "45",
         }
     return enriched_plan
 
