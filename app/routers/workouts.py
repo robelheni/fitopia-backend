@@ -782,3 +782,85 @@ def get_motivational_quote(
         "text": chosen.text,
         "author": chosen.author or "Unknown"
     }
+
+@router.get("/consistency")
+def get_consistency_stats(token: str, db: Session = Depends(get_db)):
+
+    user = get_user_from_token(token, db)
+    today = date.today()
+
+    logs = db.query(WorkoutLog).filter(
+        WorkoutLog.user_id == user.id
+    ).order_by(WorkoutLog.date.asc()).all()
+
+    log_dates = {log.date for log in logs}
+    total_workouts = len(logs)
+
+    scheduled_days = []
+    if user.training_days:
+        scheduled_days = [d.strip() for d in user.training_days.split(",")]
+
+    day_map = {0: 'mon', 1: 'tue', 2: 'wed', 3: 'thu', 4: 'fri', 5: 'sat', 6: 'sun'}
+
+    # ── Calculate longest streak ever ───────────────────────────
+
+    account_date = user.created_at.date() if user.created_at else today
+
+    longest_streak = 0
+    current_run = 0
+    check_date = account_date
+
+    while check_date <= today:
+        day_name = day_map[check_date.weekday()]
+        if day_name in scheduled_days:
+            if check_date in log_dates:
+                current_run += 1
+                longest_streak = max(longest_streak, current_run)
+            elif check_date < today:
+                # Missed a past scheduled day — streak resets
+                current_run = 0
+            # If check_date == today and not yet completed, don't reset —
+            # there's still time today
+        check_date += timedelta(days=1)
+
+    # ── Calculate current streak (reuse same logic as /streak) ──
+    current_streak = 0
+    check_date = today
+    while True:
+        day_name = day_map[check_date.weekday()]
+        if day_name in scheduled_days:
+            if check_date in log_dates:
+                current_streak += 1
+            elif check_date == today:
+                pass
+            else:
+                break
+        check_date -= timedelta(days=1)
+        if (today - check_date).days > 365 or check_date < account_date:
+            break
+
+    # ── Calculate completion percentage ─────────────────────────
+    # Count how many scheduled training days have occurred since
+    # the account was created (including today, since it's still
+    # "scheduled" even if not yet done)
+    total_scheduled_days = 0
+    check_date = account_date
+    while check_date <= today:
+        day_name = day_map[check_date.weekday()]
+        if day_name in scheduled_days:
+            total_scheduled_days += 1
+        check_date += timedelta(days=1)
+
+    completion_percentage = 0
+    if total_scheduled_days > 0:
+        completion_percentage = round((total_workouts / total_scheduled_days) * 100)
+        # Cap at 100 in case of edge cases (e.g. extra logged workouts on rest days)
+        completion_percentage = min(completion_percentage, 100)
+
+    return {
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
+        "total_workouts": total_workouts,
+        "completion_percentage": completion_percentage,
+        "account_created_at": user.created_at.isoformat() if user.created_at else None,
+    }
