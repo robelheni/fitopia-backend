@@ -157,7 +157,7 @@ def get_exercises_for_session(
 
     if fitness_level == "beginner":
         if duration <= 30:
-            exercises_per_session = 3 if has_cardio else 4
+            exercises_per_session = 3 if has_cardio else 3
         elif duration <= 45:
             exercises_per_session = 4 if has_cardio else 5
         elif duration <= 60:
@@ -166,16 +166,16 @@ def get_exercises_for_session(
             exercises_per_session = 6 if has_cardio else 7
     elif equipment == "bodyweight":
         if duration <= 30:
-            exercises_per_session = 4 if has_cardio else 5
+            exercises_per_session = 3 if has_cardio else 4
         elif duration <= 45:
-            exercises_per_session = 5 if has_cardio else 6
+            exercises_per_session = 4 if has_cardio else 6
         elif duration <= 60:
             exercises_per_session = 6 if has_cardio else 8
         else:
-            exercises_per_session = 7 if has_cardio else 10
+            exercises_per_session = 7 if has_cardio else 9
     else:
         if duration <= 30:
-            exercises_per_session = 3 if has_cardio else 4
+            exercises_per_session = 3 if has_cardio else 3
         elif duration <= 45:
             exercises_per_session = 4 if has_cardio else 5
         elif duration <= 60:
@@ -230,18 +230,16 @@ def get_exercises_for_session(
                     and ex not in selected_exercises
                 ]
                 if forced_candidates:
-                    chosen = select_by_pattern(forced_candidates, [], selected_exercises)
+                    chosen = select_by_pattern(forced_candidates, [], selected_exercises, preferred_equipment=equipment)
                 else:
-                    chosen = select_by_pattern(candidates, used_patterns, selected_exercises)
+                    chosen = select_by_pattern(candidates, used_patterns, selected_exercises, preferred_equipment=equipment)
             else:
-                chosen = select_by_pattern(candidates, used_patterns, selected_exercises)
+                chosen = select_by_pattern(candidates, used_patterns, selected_exercises, preferred_equipment=equipment)
         else:
             if equipment == "bodyweight":
-                # Bodyweight ignores pattern tracking — not enough variety
-                chosen = select_by_pattern(candidates, [], selected_exercises)
+                chosen = select_by_pattern(candidates, [], selected_exercises, preferred_equipment=equipment)
             else:
-                chosen = select_by_pattern(candidates, used_patterns, selected_exercises)
-
+                chosen = select_by_pattern(candidates, used_patterns, selected_exercises, preferred_equipment=equipment)
         if chosen and chosen not in selected_exercises:
             selected_exercises.append(chosen)
             # Only track patterns for gym and dumbbell users
@@ -251,18 +249,21 @@ def get_exercises_for_session(
     return selected_exercises
 
 
-def select_by_pattern(candidates: list, used_patterns: list, exclude_exercises: list = []):
+def select_by_pattern(candidates: list, used_patterns: list, exclude_exercises: list = [], preferred_equipment: str = None):
     """
     Pick the highest priority exercise that uses a movement pattern
     not already in this session. Priority 1 beats 2 beats 3.
     """
-    candidates_sorted = sorted(candidates, key=lambda x: x.priority or 99)
+    # Sort by equipment match first (preferred equipment wins), then priority
+    def sort_key(exercise):
+        equipment_match = 0 if exercise.equipment == preferred_equipment else 1
+        return (equipment_match, exercise.priority or 99)
+
+    candidates_sorted = sorted(candidates, key=sort_key)
 
     for exercise in candidates_sorted:
-        # Skip if already selected in this session
         if exercise in exclude_exercises:
             continue
-        # Skip if movement pattern already used this session
         if exercise.movement_pattern in used_patterns:
             continue
         return exercise
