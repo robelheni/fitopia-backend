@@ -9,6 +9,7 @@ from app.routers.workouts import get_user_from_token
 from app.models.challenge import Challenge
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy import func
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -38,15 +39,21 @@ def create_challenge(
     db: Session = Depends(get_db)
 ):
     """
-    Creates a new challenge. Admin-only. The created_by field stores
-    which admin made it, useful later if multiple admins exist.
+    Creates a new challenge. Admin-only.
     """
     admin_user = require_admin(token, db)
+
+    # Give the new challenge a display_order one higher than the current
+    # maximum, so it lands at the bottom of the list with a distinct
+    # value — not 0 like every other challenge, which made reordering
+    # a no-op since swapping identical numbers does nothing
+    max_order = db.query(func.max(Challenge.display_order)).scalar() or 0
 
     new_challenge = Challenge(
         name=challenge_data.name,
         description=challenge_data.description,
         color=challenge_data.color,
+        display_order=max_order + 1,
         created_by=admin_user.id,
     )
     db.add(new_challenge)
@@ -59,6 +66,7 @@ def create_challenge(
         "description": new_challenge.description,
         "color": new_challenge.color,
     }
+
 @router.get("/challenges")
 def get_admin_challenges(token: str, db: Session = Depends(get_db)):
     """
