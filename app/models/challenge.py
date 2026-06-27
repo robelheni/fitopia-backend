@@ -7,16 +7,14 @@ class Challenge(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # e.g. "15 Pull-Ups", "50 Push-Ups Challenge"
     name = Column(String, nullable=False)
-
-    # Longer explanation shown at the top of the challenge page
     description = Column(Text, nullable=True)
-
     color = Column(String, nullable=True)
 
-    # Who created it — always an admin for now, but storing this
-    # keeps the door open for user-created challenges later
-    created_by = Column(Integer, nullable=True)
+    # Controls manual ordering on the community page — lower numbers
+    # show first. Defaults to 0 for new challenges; admin can reorder
+    # by adjusting this value via the reorder endpoint.
+    display_order = Column(Integer, default=0)
 
+    created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

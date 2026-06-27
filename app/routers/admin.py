@@ -59,6 +59,91 @@ def create_challenge(
         "description": new_challenge.description,
         "color": new_challenge.color,
     }
+@router.get("/challenges")
+def get_admin_challenges(token: str, db: Session = Depends(get_db)):
+    """
+    Returns every challenge with its post count, ordered by display_order,
+    for the admin management screen. Unlike the public endpoint, this
+    always shows everything regardless of popularity — admins need to
+    see and manage challenges even before they get any posts.
+    """
+    require_admin(token, db)
+
+    from app.models.community import CommunityPost
+
+    challenges = db.query(Challenge).order_by(Challenge.display_order.asc()).all()
+
+    result = []
+    for challenge in challenges:
+        post_count = db.query(CommunityPost).filter(
+            CommunityPost.challenge_id == challenge.id
+        ).count()
+        result.append({
+            "id": challenge.id,
+            "name": challenge.name,
+            "description": challenge.description,
+            "color": challenge.color,
+            "display_order": challenge.display_order,
+            "post_count": post_count,
+        })
+
+    return result
+
+
+@router.put("/challenges/{challenge_id}/reorder")
+def reorder_challenge(
+    challenge_id: int,
+    token: str,
+    direction: str,  # "up" or "down"
+    db: Session = Depends(get_db)
+):
+    """
+    Moves a challenge up or down in display order by swapping its
+    display_order value with the adjacent challenge. This is simpler
+    than full drag-and-drop reordering and works well for a list
+    that's only a handful of items long.
+    """
+    require_admin(token, db)
+
+    challenges = db.query(Challenge).order_by(Challenge.display_order.asc()).all()
+
+    # Find the index of the challenge we're moving
+    index = next((i for i, c in enumerate(challenges) if c.id == challenge_id), None)
+    if index is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    if direction == "up" and index > 0:
+        # Swap display_order with the one above it
+        challenges[index].display_order, challenges[index - 1].display_order = \
+            challenges[index - 1].display_order, challenges[index].display_order
+    elif direction == "down" and index < len(challenges) - 1:
+        # Swap display_order with the one below it
+        challenges[index].display_order, challenges[index + 1].display_order = \
+            challenges[index + 1].display_order, challenges[index].display_order
+
+    db.commit()
+
+    return {"message": "Reordered"}
+
+
+@router.delete("/challenges/{challenge_id}")
+def delete_challenge(challenge_id: int, token: str, db: Session = Depends(get_db)):
+    """
+    Deletes a challenge. Posts that were tagged to it keep their
+    challenge_id pointing at a now-deleted challenge — we don't
+    cascade-delete posts, since the posts themselves still have value
+    as regular community content even if their challenge is removed.
+    """
+    require_admin(token, db)
+
+    challenge = db.query(Challenge).filter(Challenge.id == challenge_id).first()
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    db.delete(challenge)
+    db.commit()
+
+    return {"message": "Challenge deleted"}
 
 
 @router.get("/overview")
