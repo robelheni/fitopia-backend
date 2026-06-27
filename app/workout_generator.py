@@ -19,7 +19,7 @@ def get_weekly_split(days_per_week: int) -> list:
     splits = {
         2: ["full_body", "full_body"],
         3: ["push", "pull", "legs"],
-        4: ["upper", "lower", "upper", "lower"],
+        4: ["upper","lower","upper","lower"],
         5: ["push", "pull", "legs", "upper", "lower"],
         6: ["push", "pull", "legs", "push", "pull", "legs"],
     }

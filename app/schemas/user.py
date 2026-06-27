@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     gender: Optional[str] = None
     bio: Optional[str] = None
     is_pro: bool 
+    is_admin: bool
     created_at: datetime
 
     class Config:
