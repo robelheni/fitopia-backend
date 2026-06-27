@@ -6,6 +6,9 @@ from app.models.workout_log import WorkoutLog
 from app.models.community import CommunityPost, CommunityComment
 from app.models.follow import Follow
 from app.routers.workouts import get_user_from_token
+from app.models.challenge import Challenge
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -20,6 +23,42 @@ def require_admin(token: str, db: Session):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+class ChallengeCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = "#2563EB"  # defaults to blue if not specified
+
+
+@router.post("/challenges")
+def create_challenge(
+    challenge_data: ChallengeCreate,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Creates a new challenge. Admin-only. The created_by field stores
+    which admin made it, useful later if multiple admins exist.
+    """
+    admin_user = require_admin(token, db)
+
+    new_challenge = Challenge(
+        name=challenge_data.name,
+        description=challenge_data.description,
+        color=challenge_data.color,
+        created_by=admin_user.id,
+    )
+    db.add(new_challenge)
+    db.commit()
+    db.refresh(new_challenge)
+
+    return {
+        "id": new_challenge.id,
+        "name": new_challenge.name,
+        "description": new_challenge.description,
+        "color": new_challenge.color,
+    }
 
 
 @router.get("/overview")

@@ -13,6 +13,8 @@ class Challenge(Base):
     # Longer explanation shown at the top of the challenge page
     description = Column(Text, nullable=True)
 
+    color = Column(String, nullable=True)
+
     # Who created it — always an admin for now, but storing this
     # keeps the door open for user-created challenges later
     created_by = Column(Integer, nullable=True)

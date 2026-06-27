@@ -9,11 +9,15 @@ from jose import JWTError, jwt
 import os
 from pydantic import BaseModel
 from app.models.post_report import PostReport
+from app.models.challenge import Challenge
+from sqlalchemy import func
+from typing import Optional
 
 
 class PostCreate(BaseModel):
     text: str
     tag: str = "progress"
+    challenge_id: Optional[int] = None
 
 router = APIRouter(prefix="/community", tags=["Community"])
 
@@ -90,6 +94,7 @@ def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
         tag = tag,
         like_count=0,
         comment_count=0,
+        challenge_id=body.challenge_id,
     )
 
 
@@ -274,3 +279,82 @@ def report_post(post_id: int, token: str, reason: str = "Not specified", db: Ses
     db.commit()
 
     return {"message": "Post reported"}
+
+
+
+
+@router.get("/challenges")
+def get_challenges(db: Session = Depends(get_db)):
+    """
+    Returns all challenges, ranked by how many posts are tagged to them —
+    most popular challenges first. This drives the "trending" feel on
+    the community page, where active challenges rise to the top.
+    """
+    challenges = db.query(Challenge).all()
+
+    result = []
+    for challenge in challenges:
+        post_count = db.query(CommunityPost).filter(
+            CommunityPost.challenge_id == challenge.id
+        ).count()
+
+        result.append({
+            "id": challenge.id,
+            "name": challenge.name,
+            "description": challenge.description,
+            "color": challenge.color,
+            "post_count": post_count,
+        })
+
+    # Sort by post_count descending — most popular challenges first
+    result.sort(key=lambda c: c["post_count"], reverse=True)
+
+    return result
+
+
+@router.get("/challenges/{challenge_id}")
+def get_challenge_detail(challenge_id: int, token: str, db: Session = Depends(get_db)):
+    """
+    Returns a single challenge's details plus every post tagged to it,
+    newest first. This powers the challenge detail page — description
+    at the top, community posts about it below.
+    """
+    user = get_user_from_token(token, db)
+
+    challenge = db.query(Challenge).filter(Challenge.id == challenge_id).first()
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    posts = db.query(CommunityPost).filter(
+        CommunityPost.challenge_id == challenge_id
+    ).order_by(CommunityPost.created_at.desc()).all()
+
+    posts_data = []
+    for post in posts:
+        author = db.query(User).filter(User.id == post.user_id).first()
+        liked = db.query(PostLike).filter(
+            PostLike.post_id == post.id,
+            PostLike.user_id == user.id
+        ).first() is not None
+
+        posts_data.append({
+            "id": post.id,
+            "user_id": post.user_id,
+            "name": author.name if author else "Unknown",
+            "gender": author.gender if author else None,
+            "text": post.text,
+            "tag": post.tag,
+            "like_count": post.like_count,
+            "comment_count": post.comment_count,
+            "liked_by_me": liked,
+            "created_at": post.created_at.isoformat(),
+        })
+
+    return {
+        "id": challenge.id,
+        "name": challenge.name,
+        "description": challenge.description,
+        "color": challenge.color,
+        "post_count": len(posts_data),
+        "posts": posts_data,
+    }
