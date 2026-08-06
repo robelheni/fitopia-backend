@@ -123,6 +123,7 @@ def get_profile(user_id: int, token: str, db: Session = Depends(get_db)):
         "name": profile_user.name,
         "username": profile_user.username,
         "gender": profile_user.gender,
+        "profile_picture": profile_user.profile_picture,
         "follower_count": follower_count,
         "following_count": following_count,
         "post_count": post_count,
