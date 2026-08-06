@@ -179,6 +179,7 @@ def get_comments(post_id:int, token:str, db:Session = Depends(get_db)):
             "id":comment.id,
             "user": comment.user_id,
             "name": author.name if author else "Unknown",
+            "profile_picture": author.profile_picture if author else None,
             "text": comment.text,
             "created_at": comment.created_at.isoformat(),
         })
@@ -217,6 +218,7 @@ def create_comment(post_id:int, token: str, text: str, db: Session = Depends(get
         "id": new_comment.id,
         "user_id": new_comment.user_id,
         "name": user.name,
+        "profile_picture": user.profile_picture,
         "text": new_comment.text,
         "created_at":new_comment.created_at.isoformat(),
     }
