@@ -34,7 +34,7 @@ def get_user_from_token(token: str, db:Session):
         raise HTTPException(status_code=401, detail = "Invalid token")
     user = get_user_by_email(db, email)
     if not user:
-        raise HTTPException(status_code=401, detail = "user nort found")
+        raise HTTPException(status_code=401, detail = "user not found")
     return user 
 
 #return all pots on reverse chronological order 

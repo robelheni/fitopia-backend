@@ -222,10 +222,6 @@ def save_onboarding(
         user.starting_weight = user.weight
 
 
-    user.weekly_plan = None
-    user.plan_generated_at = None
-
-
     #save to database
     db.commit()
     db.refresh(user)
