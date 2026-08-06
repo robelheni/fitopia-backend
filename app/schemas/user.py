@@ -13,15 +13,16 @@ class UserCreate(BaseModel):
 
 # Wha we send back after signup or login - never include password
 class UserResponse(BaseModel):
-    id: int 
-    name: str 
+    id: int
+    name: str
     email: str
     username: Optional[str] = None
     gender: Optional[str] = None
     bio: Optional[str] = None
-    is_pro: bool 
+    is_pro: bool
     is_admin: bool
     created_at: datetime
+    profile_picture: Optional[str] = None
 
     class Config:
         from_attributes = True

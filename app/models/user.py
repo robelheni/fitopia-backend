@@ -50,3 +50,4 @@ class User(Base):
 
 
     starting_weight = Column(Float, nullable=True)
+    profile_picture = Column(String, nullable=True)

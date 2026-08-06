@@ -1,7 +1,7 @@
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import auth, plan, workouts, community as community_router, users, admin
+from app.routers import auth, plan, workouts, community as community_router, users, admin, upload
 from app.models import user, meal, workout_log, exercise, liked_exercise, community, follow, post_report, quote, challenge
 
 
@@ -35,6 +35,7 @@ app.include_router(workouts.router)
 app.include_router(community_router.router)
 app.include_router(users.router)
 app.include_router(admin.router)
+app.include_router(upload.router)
 
 
 #root endpoint - just to check the server is server is running
