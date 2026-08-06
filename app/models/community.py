@@ -15,6 +15,8 @@ class CommunityPost(Base):
 
     challenge_id = Column(Integer, ForeignKey("challenges.id"), nullable=True)
 
+    image_url = Column(String, nullable=True)
+
     like_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)
 

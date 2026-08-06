@@ -18,6 +18,7 @@ class PostCreate(BaseModel):
     text: str
     tag: str = "progress"
     challenge_id: Optional[int] = None
+    image_url: Optional[str] = None
 
 router = APIRouter(prefix="/community", tags=["Community"])
 
@@ -63,6 +64,7 @@ def get_posts(token: str, db: Session = Depends(get_db)):
             "profile_picture": author.profile_picture if author else None,
             "text": post.text,
             "tag": post.tag,
+            "image_url": post.image_url,
             "like_count": post.like_count,
             "comment_count": post.comment_count,
             "created_at": post.created_at.replace(tzinfo=timezone.utc).isoformat(),
@@ -96,6 +98,7 @@ def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
         like_count=0,
         comment_count=0,
         challenge_id=body.challenge_id,
+        image_url=body.image_url,
     )
 
 
@@ -112,11 +115,11 @@ def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
         "id": new_post.id,
         "text": new_post.text,
         "tag": new_post.tag,
+        "image_url": new_post.image_url,
         "like_count": 0,
         "comment_count": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
-
-        "liked_by_me":False,
+        "liked_by_me": False,
     }
 
 
@@ -348,6 +351,7 @@ def get_challenge_detail(challenge_id: int, token: str, db: Session = Depends(ge
             "profile_picture": author.profile_picture if author else None,
             "text": post.text,
             "tag": post.tag,
+            "image_url": post.image_url,
             "like_count": post.like_count,
             "comment_count": post.comment_count,
             "liked_by_me": liked,

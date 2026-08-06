@@ -60,3 +60,36 @@ async def upload_profile_picture(
     db.commit()
 
     return {"profile_picture": result["secure_url"]}
+
+
+@router.post("/post-image")
+async def upload_post_image(
+    token: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    user = get_user_from_token(token, db)
+
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    file_bytes = await file.read()
+
+    import time
+    timestamp = int(time.time())
+
+    try:
+        result = cloudinary.uploader.upload(
+            file_bytes,
+            public_id=f"fitopia/post_{user.id}_{timestamp}",
+            overwrite=False,
+            transformation=[
+                {"width": 1080, "crop": "limit"}
+            ]
+        )
+    except Exception:
+        print("[upload] post-image cloudinary upload FAILED:")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Cloudinary upload failed")
+
+    return {"image_url": result["secure_url"]}
