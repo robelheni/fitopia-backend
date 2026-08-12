@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from datetime import datetime
 from app.database import Base
 
@@ -16,6 +16,9 @@ class CommunityPost(Base):
     challenge_id = Column(Integer, ForeignKey("challenges.id"), nullable=True)
 
     image_url = Column(String, nullable=True)
+
+    is_private = Column(Boolean, default=False, nullable=False)
+    comments_disabled = Column(Boolean, default=False, nullable=False)
 
     like_count = Column(Integer, default=0, nullable=False)
     comment_count = Column(Integer, default=0, nullable=False)

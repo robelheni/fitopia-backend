@@ -114,6 +114,8 @@ def get_profile(user_id: int, token: str, db: Session = Depends(get_db)):
             "text": post.text,
             "tag": post.tag,
             "image_url": post.image_url,
+            "is_private": post.is_private,
+            "comments_disabled": post.comments_disabled,
             "like_count": post.like_count,
             "comment_count": post.comment_count,
             "created_at": post.created_at.isoformat(),

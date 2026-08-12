@@ -46,12 +46,15 @@ def get_posts(token: str, db: Session = Depends(get_db)):
 
     posts = db.query(CommunityPost).order_by(CommunityPost.created_at.desc()).all()
 
-    # fro eaxh post , we need to know if this user has liked it
     result = []
     for post in posts:
+        # Skip private posts unless they belong to the current user
+        if post.is_private and post.user_id != user.id:
+            continue
+
         liked = db.query(PostLike).filter(
-            PostLike.post_id ==post.id,
-            PostLike.user_id ==user.id
+            PostLike.post_id == post.id,
+            PostLike.user_id == user.id
         ).first() is not None
 
         author = db.query(User).filter(User.id == post.user_id).first()
@@ -65,6 +68,8 @@ def get_posts(token: str, db: Session = Depends(get_db)):
             "text": post.text,
             "tag": post.tag,
             "image_url": post.image_url,
+            "is_private": post.is_private,
+            "comments_disabled": post.comments_disabled,
             "like_count": post.like_count,
             "comment_count": post.comment_count,
             "created_at": post.created_at.replace(tzinfo=timezone.utc).isoformat(),
@@ -199,6 +204,9 @@ def create_comment(post_id:int, token: str, text: str, db: Session = Depends(get
     if not post:
         raise HTTPException(status_code=400, detail="Post not found")
 
+    if post.comments_disabled:
+        raise HTTPException(status_code=403, detail="Comments are disabled on this post")
+
     #dont save an empty comment
     if not text.strip():
         raise HTTPException(status_code=400, detail="Comment cannot be empty")
@@ -252,6 +260,36 @@ def delete_post(post_id: int, token: str, db: Session = Depends(get_db)):
 
     return {"message": "Post deleted"}
 
+
+
+@router.post("/posts/{post_id}/toggle-privacy")
+def toggle_privacy(post_id: int, token: str, db: Session = Depends(get_db)):
+    user = get_user_from_token(token, db)
+
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.user_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only modify your own posts")
+
+    post.is_private = not post.is_private
+    db.commit()
+    return {"is_private": post.is_private}
+
+
+@router.post("/posts/{post_id}/toggle-comments")
+def toggle_comments(post_id: int, token: str, db: Session = Depends(get_db)):
+    user = get_user_from_token(token, db)
+
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.user_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only modify your own posts")
+
+    post.comments_disabled = not post.comments_disabled
+    db.commit()
+    return {"comments_disabled": post.comments_disabled}
 
 
 @router.post("/posts/{post_id}/report")
