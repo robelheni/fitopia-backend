@@ -48,8 +48,8 @@ def get_posts(token: str, db: Session = Depends(get_db)):
 
     result = []
     for post in posts:
-        # Skip private posts unless they belong to the current user
-        if post.is_private and post.user_id != user.id:
+        # Private posts only appear on the profile page, never in the feed
+        if post.is_private:
             continue
 
         liked = db.query(PostLike).filter(
