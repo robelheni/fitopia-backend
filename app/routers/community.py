@@ -12,6 +12,8 @@ import os
 from pydantic import BaseModel
 from app.models.post_report import PostReport
 from app.models.challenge import Challenge
+from app.models.trainer import Trainer
+from app.models.trainer_application import TrainerApplication
 from sqlalchemy import func
 from typing import Optional
 
@@ -479,3 +481,100 @@ def get_challenge_detail(challenge_id: int, token: str, db: Session = Depends(ge
         "post_count": len(posts_data),
         "posts": posts_data,
     }
+
+
+# ── PUBLIC TRAINER ENDPOINTS ─────────────────────────────────────
+
+@router.get("/trainers")
+def get_trainers(db: Session = Depends(get_db)):
+    """Returns all verified, active trainers for the public trainers page."""
+    trainers = db.query(Trainer).filter(
+        Trainer.is_verified == True,
+        Trainer.is_active == True,
+    ).all()
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "bio": t.bio,
+            "speciality": t.speciality,
+            "location": t.location,
+            "languages": t.languages,
+            "years_experience": t.years_experience,
+            "clients_trained": t.clients_trained,
+            "certifications": t.certifications,
+            "hourly_rate": t.hourly_rate,
+            "profile_picture": t.profile_picture,
+            "instagram": t.instagram,
+            "contact_email": t.contact_email,
+        }
+        for t in trainers
+    ]
+
+
+@router.get("/trainers/{trainer_id}")
+def get_trainer(trainer_id: int, db: Session = Depends(get_db)):
+    """Returns a single trainer's full profile by ID."""
+    t = db.query(Trainer).filter(
+        Trainer.id == trainer_id,
+        Trainer.is_verified == True,
+        Trainer.is_active == True,
+    ).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Trainer not found")
+    return {
+        "id": t.id,
+        "name": t.name,
+        "bio": t.bio,
+        "speciality": t.speciality,
+        "location": t.location,
+        "languages": t.languages,
+        "years_experience": t.years_experience,
+        "clients_trained": t.clients_trained,
+        "certifications": t.certifications,
+        "hourly_rate": t.hourly_rate,
+        "profile_picture": t.profile_picture,
+        "instagram": t.instagram,
+        "contact_email": t.contact_email,
+    }
+
+
+class TrainerApplicationCreate(BaseModel):
+    full_name: str
+    email: str
+    bio: Optional[str] = None
+    speciality: Optional[str] = None
+    location: Optional[str] = None
+    languages: Optional[str] = None
+    years_experience: Optional[int] = None
+    certifications: Optional[str] = None
+    hourly_rate: Optional[float] = None
+    instagram: Optional[str] = None
+
+
+@router.post("/trainer-applications")
+def submit_trainer_application(
+    data: TrainerApplicationCreate,
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Any logged-in user can submit a trainer application for admin review."""
+    user = get_user_from_token(token, db)
+
+    application = TrainerApplication(
+        user_id=user.id,
+        full_name=data.full_name,
+        email=data.email,
+        bio=data.bio,
+        speciality=data.speciality,
+        location=data.location,
+        languages=data.languages,
+        years_experience=data.years_experience,
+        certifications=data.certifications,
+        hourly_rate=data.hourly_rate,
+        instagram=data.instagram,
+        status="pending",
+    )
+    db.add(application)
+    db.commit()
+    return {"message": "Application submitted successfully"}

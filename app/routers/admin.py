@@ -7,9 +7,14 @@ from app.models.community import CommunityPost, CommunityComment
 from app.models.follow import Follow
 from app.routers.workouts import get_user_from_token
 from app.models.challenge import Challenge
+from app.models.trainer import Trainer
+from app.models.trainer_application import TrainerApplication
+from app.models.announcement import Announcement
+from app.models.post_report import PostReport
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import func
+from datetime import datetime
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -199,10 +204,31 @@ def get_all_users(token: str, db: Session = Depends(get_db)):
             "username": u.username,
             "is_pro": u.is_pro,
             "is_admin": u.is_admin,
+            "is_active": u.is_active,
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users
     ]
+
+
+class TrainerCreate(BaseModel):
+    name: str
+    bio: Optional[str] = None
+    speciality: Optional[str] = None
+    location: Optional[str] = None
+    languages: Optional[str] = None
+    years_experience: Optional[int] = None
+    clients_trained: Optional[int] = None
+    certifications: Optional[str] = None
+    hourly_rate: Optional[float] = None
+    profile_picture: Optional[str] = None
+    instagram: Optional[str] = None
+    contact_email: Optional[str] = None
+
+
+class AnnouncementCreate(BaseModel):
+    title: str
+    message: str
 
 
 @router.put("/users/{user_id}/toggle-pro")
@@ -221,3 +247,244 @@ def toggle_user_pro(user_id: int, token: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"id": target_user.id, "is_pro": target_user.is_pro}
+
+
+# ── TRAINER MANAGEMENT ──────────────────────────────────────────
+
+@router.post("/trainers")
+def create_trainer(data: TrainerCreate, token: str, db: Session = Depends(get_db)):
+    require_admin(token, db)
+    new_trainer = Trainer(**data.dict())
+    new_trainer.is_verified = True
+    db.add(new_trainer)
+    db.commit()
+    db.refresh(new_trainer)
+    return new_trainer
+
+@router.get("/trainers")
+def get_all_trainers(token: str, db: Session = Depends(get_db)):
+    require_admin(token, db)
+    return db.query(Trainer).order_by(Trainer.created_at.desc()).all()
+
+@router.delete("/trainers/{trainer_id}")
+def delete_trainer(trainer_id: int, token: str, db: Session = Depends(get_db)):
+    require_admin(token, db)
+    t = db.query(Trainer).filter(Trainer.id == trainer_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Trainer not found")
+    db.delete(t)
+    db.commit()
+    return {"message": "Trainer deleted"}
+
+
+# ── TRAINER APPLICATIONS ────────────────────────────────────────
+
+@router.get("/trainer-applications")
+def get_trainer_applications(token: str, db: Session = Depends(get_db)):
+    require_admin(token, db)
+    applications = db.query(TrainerApplication).order_by(
+        TrainerApplication.created_at.desc()
+    ).all()
+    return [
+        {
+            "id": a.id,
+            "full_name": a.full_name,
+            "email": a.email,
+            "speciality": a.speciality,
+            "location": a.location,
+            "years_experience": a.years_experience,
+            "hourly_rate": a.hourly_rate,
+            "instagram": a.instagram,
+            "certifications": a.certifications,
+            "bio": a.bio,
+            "languages": a.languages,
+            "status": a.status,
+            "admin_notes": a.admin_notes,
+            "created_at": a.created_at.isoformat(),
+        }
+        for a in applications
+    ]
+
+@router.put("/trainer-applications/{application_id}/approve")
+def approve_trainer_application(
+    application_id: int, token: str, db: Session = Depends(get_db)
+):
+    """Approves an application and auto-creates a verified Trainer record."""
+    require_admin(token, db)
+
+    app_record = db.query(TrainerApplication).filter(
+        TrainerApplication.id == application_id
+    ).first()
+    if not app_record:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    new_trainer = Trainer(
+        name=app_record.full_name,
+        bio=app_record.bio,
+        speciality=app_record.speciality,
+        location=app_record.location,
+        languages=app_record.languages,
+        years_experience=app_record.years_experience,
+        certifications=app_record.certifications,
+        hourly_rate=app_record.hourly_rate,
+        instagram=app_record.instagram,
+        contact_email=app_record.email,
+        is_verified=True,
+    )
+    db.add(new_trainer)
+
+    app_record.status = "approved"
+    app_record.reviewed_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "Application approved, trainer created"}
+
+@router.put("/trainer-applications/{application_id}/reject")
+def reject_trainer_application(
+    application_id: int,
+    token: str,
+    notes: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    require_admin(token, db)
+    app_record = db.query(TrainerApplication).filter(
+        TrainerApplication.id == application_id
+    ).first()
+    if not app_record:
+        raise HTTPException(status_code=404, detail="Application not found")
+    app_record.status = "rejected"
+    app_record.admin_notes = notes
+    app_record.reviewed_at = datetime.utcnow()
+    db.commit()
+    return {"message": "Application rejected"}
+
+
+# ── ANNOUNCEMENTS ───────────────────────────────────────────────
+
+@router.post("/announcements")
+def create_announcement(
+    data: AnnouncementCreate, token: str, db: Session = Depends(get_db)
+):
+    admin = require_admin(token, db)
+    new_announcement = Announcement(
+        title=data.title,
+        message=data.message,
+        created_by=admin.id,
+    )
+    db.add(new_announcement)
+    db.commit()
+    db.refresh(new_announcement)
+    return new_announcement
+
+@router.get("/announcements")
+def get_announcements(token: str, db: Session = Depends(get_db)):
+    require_admin(token, db)
+    return db.query(Announcement).order_by(Announcement.created_at.desc()).all()
+
+@router.delete("/announcements/{announcement_id}")
+def delete_announcement(
+    announcement_id: int, token: str, db: Session = Depends(get_db)
+):
+    require_admin(token, db)
+    a = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    db.delete(a)
+    db.commit()
+    return {"message": "Announcement deleted"}
+
+
+# ── REPORTED POSTS ──────────────────────────────────────────────
+
+@router.get("/reported-posts")
+def get_reported_posts(token: str, db: Session = Depends(get_db)):
+    require_admin(token, db)
+
+    from app.models.community import CommunityPost, PostLike
+    from app.models.user import User
+
+    reports = db.query(PostReport).order_by(PostReport.reported_at.desc()).all()
+
+    result = []
+    for report in reports:
+        post = db.query(CommunityPost).filter(
+            CommunityPost.id == report.post_id
+        ).first()
+        reporter = db.query(User).filter(User.id == report.reported_by).first()
+        author = db.query(User).filter(
+            User.id == post.user_id
+        ).first() if post else None
+
+        result.append({
+            "report_id": report.id,
+            "reason": report.reason,
+            "reported_at": report.reported_at.isoformat(),
+            "reporter_name": reporter.name if reporter else "Unknown",
+            "post_id": report.post_id,
+            "post_text": post.text if post else "Post deleted",
+            "post_author": author.name if author else "Unknown",
+            "post_author_id": post.user_id if post else None,
+        })
+
+    return result
+
+@router.delete("/posts/{post_id}")
+def admin_delete_post(post_id: int, token: str, db: Session = Depends(get_db)):
+    """Admin can delete any post regardless of who posted it."""
+    require_admin(token, db)
+
+    from app.models.community import CommunityPost, CommunityComment, PostLike
+
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    db.query(PostLike).filter(PostLike.post_id == post_id).delete()
+    db.query(CommunityComment).filter(CommunityComment.post_id == post_id).delete()
+    db.delete(post)
+    db.commit()
+    return {"message": "Post deleted"}
+
+
+# ── MAKE / REMOVE ADMIN ─────────────────────────────────────────
+
+@router.put("/users/{user_id}/toggle-admin")
+def toggle_admin_status(user_id: int, token: str, db: Session = Depends(get_db)):
+    """Only user id=1 (super admin) can grant or revoke admin access."""
+    current_admin = require_admin(token, db)
+
+    if current_admin.id != 1:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the super admin can manage admin access"
+        )
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target.id == current_admin.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot remove your own admin access"
+        )
+
+    target.is_admin = not target.is_admin
+    db.commit()
+    return {"id": target.id, "is_admin": target.is_admin}
+
+
+# ── BAN / UNBAN USER ────────────────────────────────────────────
+
+@router.put("/users/{user_id}/toggle-ban")
+def toggle_ban(user_id: int, token: str, db: Session = Depends(get_db)):
+    """Bans or unbans a user by toggling is_active. Banned users cannot log in."""
+    require_admin(token, db)
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target.is_active = not target.is_active
+    db.commit()
+    return {"id": target.id, "is_active": target.is_active}

@@ -124,6 +124,12 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been suspended. Please contact support.",
+        )
+
     access_token = create_access_token(data={"sub": user.email})
 
     return {
