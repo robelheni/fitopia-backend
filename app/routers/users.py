@@ -89,10 +89,18 @@ def get_profile(user_id: int, token: str, db: Session = Depends(get_db)):
         Follow.follower_id == user_id
     ).count()
 
-    # Count their posts
-    post_count = db.query(CommunityPost).filter(
-        CommunityPost.user_id == user_id
-    ).count()
+    is_own_profile = current_user.id == user_id
+
+    # Count only public posts when viewing another user's profile
+    if is_own_profile:
+        post_count = db.query(CommunityPost).filter(
+            CommunityPost.user_id == user_id
+        ).count()
+    else:
+        post_count = db.query(CommunityPost).filter(
+            CommunityPost.user_id == user_id,
+            CommunityPost.is_private == False
+        ).count()
 
     # Does the current user already follow this profile?
     # We need this so the frontend shows "Follow" or "Following" correctly
@@ -101,13 +109,17 @@ def get_profile(user_id: int, token: str, db: Session = Depends(get_db)):
         Follow.following_id == user_id
     ).first() is not None
 
-    # Get their posts, newest first — same pattern as community feed
-    posts = db.query(CommunityPost).filter(
-        CommunityPost.user_id == user_id
-    ).order_by(CommunityPost.created_at.desc()).all()
+    # Only return private posts to the owner — everyone else sees public posts only
+    if is_own_profile:
+        posts = db.query(CommunityPost).filter(
+            CommunityPost.user_id == user_id
+        ).order_by(CommunityPost.created_at.desc()).all()
+    else:
+        posts = db.query(CommunityPost).filter(
+            CommunityPost.user_id == user_id,
+            CommunityPost.is_private == False
+        ).order_by(CommunityPost.created_at.desc()).all()
 
-    # Build the posts list with the same shape as the community feed
-    # so the frontend can reuse the same post card component
     posts_data = []
     for post in posts:
         posts_data.append({
@@ -132,7 +144,7 @@ def get_profile(user_id: int, token: str, db: Session = Depends(get_db)):
         "following_count": following_count,
         "post_count": post_count,
         "is_following": is_following,
-        "is_own_profile": current_user.id == user_id,
+        "is_own_profile": is_own_profile,
         "posts": posts_data,
     }
 
