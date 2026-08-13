@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.follow import Follow
 from app.models.community import CommunityPost
 from app.routers.auth import get_user_by_email
+from app.routers.notifications import create_notification
 from jose import JWTError, jwt
 import os
 
@@ -170,5 +171,12 @@ def toggle_follow(user_id: int, token: str, db: Session = Depends(get_db)):
             following_id=user_id
         )
         db.add(new_follow)
+        create_notification(
+            db,
+            user_id=user_id,
+            actor_id=current_user.id,
+            type="follow",
+            title=f"{current_user.name} started following you",
+        )
         db.commit()
         return {"following": True}

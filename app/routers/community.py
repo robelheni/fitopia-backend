@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.community import CommunityPost, CommunityComment, PostLike
 from app.models.user import User
 from app.routers.auth import get_user_by_email
+from app.routers.notifications import create_notification
 from jose import JWTError, jwt
 import os
 from pydantic import BaseModel
@@ -160,6 +161,17 @@ def toggle_like(post_id: int, token:str, db: Session = Depends(get_db)):
 
         #then we increase the count of the like
         post.like_count = post.like_count+1
+
+        # Notify the post owner
+        create_notification(
+            db,
+            user_id=post.user_id,
+            actor_id=user.id,
+            type="like",
+            title=f"{user.name} liked your post",
+            post_id=post_id,
+        )
+
         db.commit()
         return{"liked":True, "like_count": post.like_count}
 
@@ -221,6 +233,17 @@ def create_comment(post_id:int, token: str, text: str, db: Session = Depends(get
     db.add(new_comment)
 
     post.comment_count = post.comment_count+1
+
+    # Notify the post owner
+    create_notification(
+        db,
+        user_id=post.user_id,
+        actor_id=user.id,
+        type="comment",
+        title=f"{user.name} commented on your post",
+        body=text.strip()[:100],
+        post_id=post_id,
+    )
 
     db.commit()
     db.refresh(new_comment)
