@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.models.community import CommunityPost, CommunityComment, PostLike
 from app.models.user import User
+from app.models.follow import Follow
 from app.routers.auth import get_user_by_email
 from app.routers.notifications import create_notification
 from jose import JWTError, jwt
@@ -68,19 +69,38 @@ def get_post(post_id: int, token: str, db: Session = Depends(get_db)):
     }
 
 
-#return all pots on reverse chronological order
-#also tells the frintend whether the crrent user has liked each posts
+# Returns ranked feed posts — score combines engagement, follow relationship, and recency.
 @router.get("/posts")
 def get_posts(token: str, db: Session = Depends(get_db)):
-    user = get_user_from_token(token,db)
+    user = get_user_from_token(token, db)
 
-    posts = db.query(CommunityPost).order_by(CommunityPost.created_at.desc()).all()
+    # Fetch all public posts — order doesn't matter here, we'll sort by score below
+    posts = db.query(CommunityPost).all()
 
-    result = []
+    # Build the set of user_ids this viewer follows in one query (O(1) lookup in the loop)
+    followed_ids = {
+        f.following_id for f in
+        db.query(Follow).filter(Follow.follower_id == user.id).all()
+    }
+
+    now = datetime.now(timezone.utc)
+
+    scored_posts = []
     for post in posts:
-        # Private posts only appear on the profile page, never in the feed
+        # Private posts only appear on profile pages, never in the public feed
         if post.is_private:
             continue
+
+        # Normalise naive UTC datetimes stored without tzinfo
+        post_time = post.created_at
+        if post_time.tzinfo is None:
+            post_time = post_time.replace(tzinfo=timezone.utc)
+
+        hours_old = (now - post_time).total_seconds() / 3600
+        time_decay = hours_old + 2  # +2 so brand-new posts don't dominate and avoids div-by-zero
+
+        follow_boost = 15 if post.user_id in followed_ids else 0
+        score = (post.like_count + (post.comment_count * 2) + follow_boost) / time_decay
 
         liked = db.query(PostLike).filter(
             PostLike.post_id == post.id,
@@ -89,7 +109,7 @@ def get_posts(token: str, db: Session = Depends(get_db)):
 
         author = db.query(User).filter(User.id == post.user_id).first()
 
-        result.append({
+        scored_posts.append((score, {
             "id": post.id,
             "user_id": post.user_id,
             "name": author.name if author else "Unknown",
@@ -104,9 +124,12 @@ def get_posts(token: str, db: Session = Depends(get_db)):
             "comment_count": post.comment_count,
             "created_at": post.created_at.replace(tzinfo=timezone.utc).isoformat(),
             "liked_by_me": liked,
-        })
+            "score": round(score, 2),
+        }))
 
-    return result
+    # Sort highest score first
+    scored_posts.sort(key=lambda x: x[0], reverse=True)
+    return [post for _, post in scored_posts]
 
 @router.post("/posts")
 def create_post(token: str, body: PostCreate, db: Session = Depends(get_db)):
