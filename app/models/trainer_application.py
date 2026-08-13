@@ -18,8 +18,10 @@ class TrainerApplication(Base):
     years_experience = Column(Integer, nullable=True)
     certifications = Column(Text, nullable=True)
     hourly_rate = Column(Float, nullable=True)
-    instagram = Column(String, nullable=True)
-    whatsapp  = Column(String, nullable=True)
+    instagram                = Column(String, nullable=True)
+    whatsapp                 = Column(String, nullable=True)
+    profile_picture          = Column(String, nullable=True)      # URL from upload endpoint
+    transformation_pictures  = Column(String, nullable=True)      # comma-separated URLs
 
     # pending, approved, rejected
     status = Column(String, default="pending")

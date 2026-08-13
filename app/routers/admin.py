@@ -375,16 +375,21 @@ def create_announcement(
     db.add(new_announcement)
     db.flush()  # get the id before commit
 
-    # Fan out a notification to every active user
-    all_users = db.query(User).filter(User.is_active == True).all()
-    for u in all_users:
-        db.add(Notification(
-            user_id=u.id,
-            actor_id=admin.id,
-            type="announcement",
-            title=data.title,
-            body=data.message,
-        ))
+    # Fan out a notification to every active user.
+    # Use != False so users with is_active=NULL (pre-migration rows) are included.
+    try:
+        all_users = db.query(User).filter(User.is_active != False).all()
+        for u in all_users:
+            db.add(Notification(
+                user_id=u.id,
+                actor_id=admin.id,
+                type="announcement",
+                title=data.title,
+                body=data.message,
+            ))
+    except Exception as e:
+        # Don't fail the announcement creation if notification fan-out errors
+        print(f"Announcement fan-out error: {e}")
 
     db.commit()
     db.refresh(new_announcement)
