@@ -39,7 +39,36 @@ def get_user_from_token(token: str, db:Session):
         raise HTTPException(status_code=401, detail = "user not found")
     return user 
 
-#return all pots on reverse chronological order 
+# GET /community/posts/{post_id} — single post by ID
+@router.get("/posts/{post_id}")
+def get_post(post_id: int, token: str, db: Session = Depends(get_db)):
+    user = get_user_from_token(token, db)
+    post = db.query(CommunityPost).filter(CommunityPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    author = db.query(User).filter(User.id == post.user_id).first()
+    liked = db.query(PostLike).filter(
+        PostLike.post_id == post_id,
+        PostLike.user_id == user.id
+    ).first() is not None
+    return {
+        "id": post.id,
+        "user_id": post.user_id,
+        "name": author.name if author else "Unknown",
+        "profile_picture": author.profile_picture if author else None,
+        "text": post.text,
+        "tag": post.tag,
+        "image_url": post.image_url,
+        "is_private": post.is_private,
+        "comments_disabled": post.comments_disabled,
+        "like_count": post.like_count,
+        "comment_count": post.comment_count,
+        "liked_by_me": liked,
+        "created_at": post.created_at.replace(tzinfo=timezone.utc).isoformat(),
+    }
+
+
+#return all pots on reverse chronological order
 #also tells the frintend whether the crrent user has liked each posts
 @router.get("/posts")
 def get_posts(token: str, db: Session = Depends(get_db)):
