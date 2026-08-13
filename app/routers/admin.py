@@ -11,6 +11,7 @@ from app.models.trainer import Trainer
 from app.models.trainer_application import TrainerApplication
 from app.models.announcement import Announcement
 from app.models.post_report import PostReport
+from app.models.notification import Notification
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy import func
@@ -372,6 +373,19 @@ def create_announcement(
         created_by=admin.id,
     )
     db.add(new_announcement)
+    db.flush()  # get the id before commit
+
+    # Fan out a notification to every active user
+    all_users = db.query(User).filter(User.is_active == True).all()
+    for u in all_users:
+        db.add(Notification(
+            user_id=u.id,
+            actor_id=admin.id,
+            type="announcement",
+            title=data.title,
+            body=data.message,
+        ))
+
     db.commit()
     db.refresh(new_announcement)
     return new_announcement

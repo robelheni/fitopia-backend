@@ -19,6 +19,7 @@ class TrainerApplication(Base):
     certifications = Column(Text, nullable=True)
     hourly_rate = Column(Float, nullable=True)
     instagram = Column(String, nullable=True)
+    whatsapp  = Column(String, nullable=True)
 
     # pending, approved, rejected
     status = Column(String, default="pending")

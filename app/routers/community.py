@@ -550,6 +550,7 @@ class TrainerApplicationCreate(BaseModel):
     certifications: Optional[str] = None
     hourly_rate: Optional[float] = None
     instagram: Optional[str] = None
+    whatsapp: Optional[str] = None
 
 
 @router.post("/trainer-applications")
@@ -573,6 +574,7 @@ def submit_trainer_application(
         certifications=data.certifications,
         hourly_rate=data.hourly_rate,
         instagram=data.instagram,
+        whatsapp=data.whatsapp,
         status="pending",
     )
     db.add(application)
