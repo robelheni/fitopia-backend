@@ -469,14 +469,7 @@ def admin_delete_post(post_id: int, token: str, db: Session = Depends(get_db)):
 
 @router.put("/users/{user_id}/toggle-admin")
 def toggle_admin_status(user_id: int, token: str, db: Session = Depends(get_db)):
-    """Only user id=1 (super admin) can grant or revoke admin access."""
     current_admin = require_admin(token, db)
-
-    if current_admin.id != 1:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the super admin can manage admin access"
-        )
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
